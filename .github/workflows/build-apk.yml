@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: kittoku/Open-SSTP-Client
-          ref: main
+          ref: 5f97511c3afff7dcf76b763882e0e29207ad1a36
           path: upstream
 
       - name: Set up Java
