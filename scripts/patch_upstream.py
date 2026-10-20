@@ -192,6 +192,8 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
                                     .putString(OscPrefKey.HOME_USERNAME.name, username)
                                     .putString(OscPrefKey.HOME_PASSWORD.name, password)
                                     .putBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
+                                    .apply()
+                                prefs.edit()
                                     .putString(PROFILE_KEY_HEADER + profileName, serializeProfile(prefs))
                                     .apply()
                                 refreshProfiles()
