@@ -31,9 +31,9 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Apply app branding
+      - name: Apply SSTP Switcher profile selector
+        run: python3 scripts/patch_upstream.py
         working-directory: upstream
-        run: sed -i 's#<string name="app_name">Open SSTP Client</string>#<string name="app_name">SSTP Switcher</string>#' app/src/main/res/values/strings.xml
 
       - name: Build debug APK
         working-directory: upstream
