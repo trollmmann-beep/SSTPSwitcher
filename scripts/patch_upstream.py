@@ -267,3 +267,17 @@ text = text.replace('Toast.makeText(this, "PROFILE SAVED", Toast.LENGTH_SHORT).s
 text = text.replace('Toast.makeText(this, "PROFILE IMPORTED", Toast.LENGTH_SHORT).show()', 'refreshProfiles()\n                Toast.makeText(this, "Профиль импортирован", Toast.LENGTH_SHORT).show()')
 activity.write_text(text, encoding="utf-8")
 print("Modern single-page profile list applied.")
+
+# Original launcher mark: blue rounded tile with a white signal/route glyph.
+manifest = root / "app/src/main/AndroidManifest.xml"
+manifest_text = manifest.read_text(encoding="utf-8").replace('@mipmap/ic_launcher_round', '@drawable/sstp_switcher_logo').replace('@mipmap/ic_launcher', '@drawable/sstp_switcher_logo')
+manifest.write_text(manifest_text, encoding="utf-8")
+logo = root / "app/src/main/res/drawable/sstp_switcher_logo.xml"
+logo.write_text("""<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#2F6EF2" android:pathData="M0,0h108v108h-108z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M68,28c-4,-4 -10,-6 -17,-6 -13,0 -22,8 -22,19 0,10 7,15 20,18l7,2c7,2 10,4 10,8 0,5 -5,8 -12,8 -8,0 -15,-4 -20,-10l-9,10c7,9 17,14 29,14 16,0 27,-9 27,-22 0,-10 -7,-16 -21,-20l-8,-2c-6,-2 -8,-4 -8,-7 0,-4 4,-7 10,-7 5,0 10,2 14,6z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M77,18l-4,12h8l-7,15 19,-20h-10l4,-7z"/>
+</vector>
+""", encoding="utf-8")
