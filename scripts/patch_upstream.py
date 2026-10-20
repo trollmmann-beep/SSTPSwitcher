@@ -119,8 +119,6 @@ text = replace_once(
     "profile menu handler",
 )
 
-text = text.replace('0 -> "HOME"', '0 -> "Подключение"')
-text = text.replace('1 -> "SETTING"', '1 -> "Настройки"')
 
 activity.write_text(text, encoding="utf-8")
 print("Patched Russian UI and automatic saved-profile switching.")
