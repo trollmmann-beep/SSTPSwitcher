@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -47,3 +47,13 @@ jobs:
           path: upstream/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish latest APK release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: Latest SSTP Switcher APK
+          body: Automatically built from the current main branch. Check the Actions run for build logs.
+          make_latest: true
+          overwrite_files: true
+          files: upstream/app/build/outputs/apk/debug/*.apk
