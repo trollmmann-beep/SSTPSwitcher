@@ -189,10 +189,10 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
                             password.isBlank() -> passInput.error = "Введите пароль"
                             else -> {
                                 try {
-                                val previousHost = getStringPrefValue(OscPrefKey.HOME_HOSTNAME, prefs)
-                                val previousPort = prefs.getInt(OscPrefKey.SSL_PORT.name, 443)
-                                val previousUsername = getStringPrefValue(OscPrefKey.HOME_USERNAME, prefs)
-                                val previousPassword = getStringPrefValue(OscPrefKey.HOME_PASSWORD, prefs)
+                                val previousHost = prefs.all[OscPrefKey.HOME_HOSTNAME.name] as? String ?: ""
+                                val previousPort = (prefs.all[OscPrefKey.SSL_PORT.name] as? Int) ?: 443
+                                val previousUsername = prefs.all[OscPrefKey.HOME_USERNAME.name] as? String ?: ""
+                                val previousPassword = prefs.all[OscPrefKey.HOME_PASSWORD.name] as? String ?: ""
                                 val wasConnected = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
                                 prefs.edit()
                                     .putString(OscPrefKey.HOME_HOSTNAME.name, hostname)
