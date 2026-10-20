@@ -135,7 +135,7 @@ import android.widget.TextView
 """)
 text = replace_once(text,
     "    private lateinit var settingFragment: PreferenceFragmentCompat\n",
-    "    private lateinit var settingFragment: PreferenceFragmentCompat\n    private lateinit var profileList: LinearLayout\n    private lateinit var statusLabel: TextView\n",
+    "    private lateinit var settingFragment: PreferenceFragmentCompat\n    private lateinit var profileList: LinearLayout\n    private lateinit var statusLabel: TextView\n    private lateinit var preferenceListener: SharedPreferences.OnSharedPreferenceChangeListener\n",
     "modern UI fields")
 text = replace_once(text, "    private fun updatePreferenceView() {", """
     private fun showSaveDialogSafe() {
@@ -245,6 +245,15 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
         if (!::profileList.isInitialized) return
         profileList.removeAllViews()
         val profiles = prefs.all.filter { it.key.startsWith(PROFILE_KEY_HEADER) && it.value is String }.toSortedMap()
+        val currentHost = getStringPrefValue(OscPrefKey.HOME_HOSTNAME, prefs)
+        val activeName = profiles.entries.firstOrNull { entry ->
+            deserializeProfile(entry.value as String)?.stringSetting?.get(OscPrefKey.HOME_HOSTNAME.name) == currentHost
+        }?.key?.removePrefix(PROFILE_KEY_HEADER) ?: currentHost
+        statusLabel.text = if (prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false)) {
+            "VPN-служба запущена · $activeName"
+        } else {
+            "VPN отключён"
+        }
         if (profiles.isEmpty()) {
             profileList.addView(uiText("Сохранённых подключений пока нет", 14f, Color.rgb(110,118,132)).apply {
                 gravity = Gravity.CENTER; setPadding(0, dp(28), 0, dp(28))
@@ -356,9 +365,28 @@ text = replace_once(text, """        title = "${getString(R.string.app_name)}: $
         })
         setContentView(page)
         refreshProfiles()
+        preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == OscPrefKey.HOME_CONNECTOR.name ||
+                key == OscPrefKey.ROOT_STATE.name ||
+                key == OscPrefKey.HOME_HOSTNAME.name) {
+                runOnUiThread { refreshProfiles() }
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(preferenceListener)
 """, "replace tabbed home screen")
 text = text.replace('Toast.makeText(this, "PROFILE SAVED", Toast.LENGTH_SHORT).show()', 'refreshProfiles()\n                Toast.makeText(this, "Подключение сохранено", Toast.LENGTH_SHORT).show()')
 text = text.replace('Toast.makeText(this, "PROFILE IMPORTED", Toast.LENGTH_SHORT).show()', 'refreshProfiles()\n                Toast.makeText(this, "Профиль импортирован", Toast.LENGTH_SHORT).show()')
+text = replace_once(text,
+    "    override fun onCreateOptionsMenu(menu: Menu?): Boolean {",
+    """    override fun onDestroy() {
+        if (::preferenceListener.isInitialized) {
+            prefs.unregisterOnSharedPreferenceChangeListener(preferenceListener)
+        }
+        super.onDestroy()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {""",
+    "unregister status listener")
 activity.write_text(text, encoding="utf-8")
 print("Modern single-page profile list applied.")
 
