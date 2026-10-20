@@ -67,7 +67,7 @@ text = replace_once(
         }
     }
 
-    private fun showSavedProfiles() {
+    private fun showSavedProfilesLegacy() {
         val profiles = prefs.all
             .filter { it.key.startsWith(PROFILE_KEY_HEADER) && it.value is String }
             .toSortedMap()
