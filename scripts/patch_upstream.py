@@ -186,6 +186,11 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
                             username.isBlank() -> userInput.error = "Введите логин"
                             password.isBlank() -> passInput.error = "Введите пароль"
                             else -> {
+                                val previousHost = getStringPrefValue(OscPrefKey.HOME_HOSTNAME, prefs)
+                                val previousPort = prefs.getInt(OscPrefKey.SSL_PORT.name, 443)
+                                val previousUsername = getStringPrefValue(OscPrefKey.HOME_USERNAME, prefs)
+                                val previousPassword = getStringPrefValue(OscPrefKey.HOME_PASSWORD, prefs)
+                                val wasConnected = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
                                 prefs.edit()
                                     .putString(OscPrefKey.HOME_HOSTNAME.name, hostname)
                                     .putInt(OscPrefKey.SSL_PORT.name, port)
@@ -193,8 +198,14 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
                                     .putString(OscPrefKey.HOME_PASSWORD.name, password)
                                     .putBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
                                     .apply()
+                                val serializedProfile = serializeProfile(prefs)
                                 prefs.edit()
-                                    .putString(PROFILE_KEY_HEADER + profileName, serializeProfile(prefs))
+                                    .putString(PROFILE_KEY_HEADER + profileName, serializedProfile)
+                                    .putString(OscPrefKey.HOME_HOSTNAME.name, previousHost)
+                                    .putInt(OscPrefKey.SSL_PORT.name, previousPort)
+                                    .putString(OscPrefKey.HOME_USERNAME.name, previousUsername)
+                                    .putString(OscPrefKey.HOME_PASSWORD.name, previousPassword)
+                                    .putBoolean(OscPrefKey.HOME_CONNECTOR.name, wasConnected)
                                     .apply()
                                 refreshProfiles()
                                 Toast.makeText(this, "Подключение сохранено", Toast.LENGTH_SHORT).show()
