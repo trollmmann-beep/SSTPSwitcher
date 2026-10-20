@@ -150,6 +150,8 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
                 inputType = type
                 setText(value)
                 textSize = 16f
+                setTextColor(Color.rgb(28,33,43))
+                setHintTextColor(Color.rgb(125,132,145))
                 setPadding(dp(12), dp(12), dp(12), dp(12))
                 background = pill(Color.rgb(244,246,250), 12)
                 layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }
