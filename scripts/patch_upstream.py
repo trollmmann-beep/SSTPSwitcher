@@ -188,6 +188,7 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
                             username.isBlank() -> userInput.error = "Введите логин"
                             password.isBlank() -> passInput.error = "Введите пароль"
                             else -> {
+                                try {
                                 val previousHost = getStringPrefValue(OscPrefKey.HOME_HOSTNAME, prefs)
                                 val previousPort = prefs.getInt(OscPrefKey.SSL_PORT.name, 443)
                                 val previousUsername = getStringPrefValue(OscPrefKey.HOME_USERNAME, prefs)
@@ -212,6 +213,9 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
                                 refreshProfiles()
                                 Toast.makeText(this, "Подключение сохранено", Toast.LENGTH_SHORT).show()
                                 dialog.dismiss()
+                                } catch (error: Exception) {
+                                    Toast.makeText(this, "Не удалось сохранить подключение. Проверьте данные и попробуйте снова.", Toast.LENGTH_LONG).show()
+                                }
                             }
                         }
                     }
