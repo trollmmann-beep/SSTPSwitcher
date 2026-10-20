@@ -231,7 +231,17 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
         val profile = deserializeProfile(serialized) ?: run {
             Toast.makeText(this, "Не удалось прочитать профиль", Toast.LENGTH_SHORT).show(); return
         }
+        val selectedHost = profile.stringSetting[OscPrefKey.HOME_HOSTNAME.name].orEmpty()
+        val selectedUser = profile.stringSetting[OscPrefKey.HOME_USERNAME.name].orEmpty()
+        val selectedPort = profile.intSetting[OscPrefKey.SSL_PORT.name] ?: 443
+        val currentHost = getStringPrefValue(OscPrefKey.HOME_HOSTNAME, prefs)
+        val currentUser = getStringPrefValue(OscPrefKey.HOME_USERNAME, prefs)
+        val currentPort = prefs.getInt(OscPrefKey.SSL_PORT.name, 443)
         val wasConnected = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
+        if (wasConnected && selectedHost == currentHost && selectedUser == currentUser && selectedPort == currentPort) {
+            Toast.makeText(this, "Это подключение уже выбрано", Toast.LENGTH_SHORT).show()
+            return
+        }
         if (wasConnected) startVpnService(ACTION_VPN_DISCONNECT)
         importProfile(profile, prefs)
         statusLabel.text = "Подключение запускается…"
@@ -246,13 +256,20 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
         profileList.removeAllViews()
         val profiles = prefs.all.filter { it.key.startsWith(PROFILE_KEY_HEADER) && it.value is String }.toSortedMap()
         val currentHost = getStringPrefValue(OscPrefKey.HOME_HOSTNAME, prefs)
+        val currentUser = getStringPrefValue(OscPrefKey.HOME_USERNAME, prefs)
+        val currentPort = prefs.getInt(OscPrefKey.SSL_PORT.name, 443)
+        val isVpnStarted = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
         val activeName = profiles.entries.firstOrNull { entry ->
-            deserializeProfile(entry.value as String)?.stringSetting?.get(OscPrefKey.HOME_HOSTNAME.name) == currentHost
+            val saved = deserializeProfile(entry.value as String)
+            saved?.stringSetting?.get(OscPrefKey.HOME_HOSTNAME.name) == currentHost &&
+                saved.stringSetting[OscPrefKey.HOME_USERNAME.name] == currentUser &&
+                (saved.intSetting[OscPrefKey.SSL_PORT.name] ?: 443) == currentPort
         }?.key?.removePrefix(PROFILE_KEY_HEADER) ?: currentHost
-        statusLabel.text = if (prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false)) {
-            "VPN-служба запущена · $activeName"
-        } else {
-            "VPN отключён"
+        val connectionStatus = getStringPrefValue(OscPrefKey.HOME_STATUS, prefs)
+        statusLabel.text = when {
+            !isVpnStarted -> "VPN отключён"
+            connectionStatus.isNotBlank() -> "$activeName · $connectionStatus"
+            else -> "$activeName · VPN-служба запущена"
         }
         if (profiles.isEmpty()) {
             profileList.addView(uiText("Сохранённых подключений пока нет", 14f, Color.rgb(110,118,132)).apply {
@@ -268,20 +285,28 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
             val info = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(0, -2, 1f) }
             info.addView(uiText(key.removePrefix(PROFILE_KEY_HEADER), 16f, Color.rgb(28,33,43), true))
-            info.addView(uiText("SSTP · Сохранённый профиль", 12f, Color.rgb(116,123,136)).apply {
+            val saved = prefs.getString(key, null)?.let { deserializeProfile(it) }
+            val savedHost = saved?.stringSetting?.get(OscPrefKey.HOME_HOSTNAME.name).orEmpty()
+            val savedPort = saved?.intSetting?.get(OscPrefKey.SSL_PORT.name) ?: 443
+            info.addView(uiText("$savedHost:$savedPort", 12f, Color.rgb(116,123,136)).apply {
                 setPadding(0, dp(5), 0, 0)
             })
             card.addView(info)
             val profileSwitch = android.widget.Switch(this).apply {
                 val saved = prefs.getString(key, null)?.let { deserializeProfile(it) }
                 val savedHost = saved?.stringSetting?.get(OscPrefKey.HOME_HOSTNAME.name).orEmpty()
+                val savedUser = saved?.stringSetting?.get(OscPrefKey.HOME_USERNAME.name).orEmpty()
+                val savedPort = saved?.intSetting?.get(OscPrefKey.SSL_PORT.name) ?: 443
                 val currentHost = getStringPrefValue(OscPrefKey.HOME_HOSTNAME, prefs)
-                isChecked = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false) && savedHost == currentHost
+                val currentUser = getStringPrefValue(OscPrefKey.HOME_USERNAME, prefs)
+                val currentPort = prefs.getInt(OscPrefKey.SSL_PORT.name, 443)
+                val isCurrent = savedHost == currentHost && savedUser == currentUser && savedPort == currentPort
+                isChecked = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false) && isCurrent
                 contentDescription = "Включить подключение ${key.removePrefix(PROFILE_KEY_HEADER)}"
                 setOnCheckedChangeListener { _, enabled ->
                     if (enabled) {
                         selectProfile(key)
-                    } else if (savedHost == getStringPrefValue(OscPrefKey.HOME_HOSTNAME, prefs) &&
+                    } else if (isCurrent &&
                         prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false)) {
                         startVpnService(ACTION_VPN_DISCONNECT)
                         statusLabel.text = "Отключение…"
@@ -368,7 +393,10 @@ text = replace_once(text, """        title = "${getString(R.string.app_name)}: $
         preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key == OscPrefKey.HOME_CONNECTOR.name ||
                 key == OscPrefKey.ROOT_STATE.name ||
-                key == OscPrefKey.HOME_HOSTNAME.name) {
+                key == OscPrefKey.HOME_HOSTNAME.name ||
+                key == OscPrefKey.HOME_STATUS.name ||
+                key == OscPrefKey.HOME_USERNAME.name ||
+                key == OscPrefKey.SSL_PORT.name) {
                 runOnUiThread { refreshProfiles() }
             }
         }
