@@ -123,4 +123,89 @@ text = text.replace('0 -> "HOME"', '0 -> "Подключение"')
 text = text.replace('1 -> "SETTING"', '1 -> "Настройки"')
 
 activity.write_text(text, encoding="utf-8")
-print("Patched Russian UI and automatic saved-profile switching.")
+# Visual-only redesign. Keep the existing VPN/profile logic above unchanged.
+layout = root / "app/src/main/res/layout/activity_main.xml"
+layout_text = layout.read_text(encoding="utf-8")
+layout_text = layout_text.replace(
+    '    android:orientation="vertical">',
+    '    android:orientation="vertical"\n    android:background="@color/screen_background">',
+    1,
+)
+layout_text = layout_text.replace(
+    '        android:layout_height="wrap_content" />',
+    '        android:layout_height="wrap_content"\n        android:background="@color/surface"\n        android:elevation="2dp"\n        app:tabIndicatorColor="@color/brand_blue"\n        app:tabIndicatorHeight="3dp"\n        app:tabSelectedTextColor="@color/brand_navy"\n        app:tabTextColor="@color/text_secondary" />',
+    1,
+)
+if 'xmlns:app=' not in layout_text:
+    layout_text = layout_text.replace(
+        '<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"',
+        '<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"\n    xmlns:app="http://schemas.android.com/apk/res-auto"',
+        1,
+    )
+layout.write_text(layout_text, encoding="utf-8")
+
+colors = root / "app/src/main/res/values/colors.xml"
+colors_text = colors.read_text(encoding="utf-8")
+colors_text = colors_text.replace(
+    '</resources>',
+    '    <color name="brand_navy">#17243A</color>\n'
+    '    <color name="brand_navy_dark">#101A2B</color>\n'
+    '    <color name="brand_blue">#3978F6</color>\n'
+    '    <color name="screen_background">#F3F5F9</color>\n'
+    '    <color name="surface">#FFFFFFFF</color>\n'
+    '    <color name="text_primary">#17243A</color>\n'
+    '    <color name="text_secondary">#68758A</color>\n'
+    '</resources>',
+)
+colors.write_text(colors_text, encoding="utf-8")
+
+theme = root / "app/src/main/res/values/themes.xml"
+theme_text = theme.read_text(encoding="utf-8")
+theme_text = theme_text.replace(
+    '<item name="colorPrimary">@color/teal_700</item>',
+    '<item name="colorPrimary">@color/brand_navy</item>',
+).replace(
+    '<item name="colorPrimaryVariant">@color/teal_700</item>',
+    '<item name="colorPrimaryVariant">@color/brand_navy_dark</item>',
+).replace(
+    '<item name="colorOnPrimary">@color/white</item>',
+    '<item name="colorOnPrimary">@color/white</item>',
+).replace(
+    '<item name="colorSecondary">@color/deep_orange_700</item>',
+    '<item name="colorSecondary">@color/brand_blue</item>',
+).replace(
+    '<item name="colorSecondaryVariant">@color/deep_orange_700</item>',
+    '<item name="colorSecondaryVariant">@color/brand_blue</item>',
+).replace(
+    '<item name="android:statusBarColor">@color/teal_700</item>',
+    '<item name="android:statusBarColor">@color/brand_navy_dark</item>',
+)
+if '<item name="android:windowBackground">' not in theme_text:
+    theme_text = theme_text.replace(
+        '        <!-- Customize your theme here. -->',
+        '        <item name="android:windowBackground">@color/screen_background</item>\n'
+        '        <item name="colorControlActivated">@color/brand_blue</item>\n'
+        '        <item name="android:fontFamily">sans</item>\n'
+        '        <!-- Customize your theme here. -->',
+    )
+theme.write_text(theme_text, encoding="utf-8")
+
+# Translate visible preference category headings without changing any keys or behavior.
+settings = root / "app/src/main/res/xml/settings.xml"
+settings_text = settings.read_text(encoding="utf-8")
+for source, target in {
+    "SSL Layer": "Защита соединения",
+    "HTTP Proxy": "Прокси-сервер",
+    "PPP Layer": "Параметры соединения",
+    "PPP Authentication Protocol": "Авторизация",
+    "PPP Network Protocol": "Сетевые протоколы",
+    "DNS Server": "DNS-серверы",
+    "Routing": "Маршрутизация",
+    "Reconnection": "Переподключение",
+    "Log": "Журнал событий",
+}.items():
+    settings_text = settings_text.replace(source, target)
+settings.write_text(settings_text, encoding="utf-8")
+
+# Keep the existing VPN engine and profile operations untouched.
+print("Patched Russian UI, profile selector, and visual theme.")
