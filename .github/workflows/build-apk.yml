@@ -1,4 +1,4 @@
-name: Build SSTP Android APK
+name: Build SSTP Switcher APK
 
 on:
   workflow_dispatch:
@@ -15,11 +15,11 @@ jobs:
       - name: Checkout switcher repository
         uses: actions/checkout@v4
 
-      - name: Checkout upstream SSTP engine
+      - name: Checkout Open-SSTP-Client engine
         uses: actions/checkout@v4
         with:
           repository: kittoku/Open-SSTP-Client
-          ref: v1.10.2
+          ref: main
           path: upstream
 
       - name: Set up Java
@@ -31,16 +31,16 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Build upstream SSTP client baseline
+      - name: Build debug APK
         working-directory: upstream
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
 
-      - name: Publish APK artifact
+      - name: Publish APK
         uses: actions/upload-artifact@v4
         with:
-          name: Open-SSTP-Client-baseline
+          name: SSTPSwitcher-APK
           path: upstream/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
