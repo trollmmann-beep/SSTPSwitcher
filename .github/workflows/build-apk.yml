@@ -33,7 +33,6 @@ jobs:
 
       - name: Apply SSTP Switcher profile selector
         run: python3 scripts/patch_upstream.py
-        working-directory: upstream
 
       - name: Build debug APK
         working-directory: upstream
