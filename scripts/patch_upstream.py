@@ -126,7 +126,7 @@ activity.write_text(text, encoding="utf-8")
 print("Patched Russian UI and automatic saved-profile switching.")
 
 # Single-page modern UI. Keep the upstream VPN engine and profile serialization unchanged.
-text = text.replace("import android.widget.Toast\\n", """import android.widget.Toast
+text = text.replace("import android.widget.Toast\n", """import android.widget.Toast
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -136,8 +136,8 @@ import android.widget.ScrollView
 import android.widget.TextView
 """)
 text = replace_once(text,
-    "    private lateinit var settingFragment: PreferenceFragmentCompat\\n",
-    "    private lateinit var settingFragment: PreferenceFragmentCompat\\n    private lateinit var profileList: LinearLayout\\n    private lateinit var statusLabel: TextView\\n",
+    "    private lateinit var settingFragment: PreferenceFragmentCompat\n",
+    "    private lateinit var settingFragment: PreferenceFragmentCompat\n    private lateinit var profileList: LinearLayout\n    private lateinit var statusLabel: TextView\n",
     "modern UI fields")
 text = replace_once(text, "    private fun updatePreferenceView() {", """
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -263,7 +263,7 @@ text = replace_once(text, """        title = "${getString(R.string.app_name)}: $
         setContentView(page)
         refreshProfiles()
 """, "replace tabbed home screen")
-text = text.replace('Toast.makeText(this, "PROFILE SAVED", Toast.LENGTH_SHORT).show()', 'refreshProfiles()\\n                Toast.makeText(this, "Подключение сохранено", Toast.LENGTH_SHORT).show()')
-text = text.replace('Toast.makeText(this, "PROFILE IMPORTED", Toast.LENGTH_SHORT).show()', 'refreshProfiles()\\n                Toast.makeText(this, "Профиль импортирован", Toast.LENGTH_SHORT).show()')
+text = text.replace('Toast.makeText(this, "PROFILE SAVED", Toast.LENGTH_SHORT).show()', 'refreshProfiles()\n                Toast.makeText(this, "Подключение сохранено", Toast.LENGTH_SHORT).show()')
+text = text.replace('Toast.makeText(this, "PROFILE IMPORTED", Toast.LENGTH_SHORT).show()', 'refreshProfiles()\n                Toast.makeText(this, "Профиль импортирован", Toast.LENGTH_SHORT).show()')
 activity.write_text(text, encoding="utf-8")
 print("Modern single-page profile list applied.")
