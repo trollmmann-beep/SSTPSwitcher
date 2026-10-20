@@ -214,7 +214,9 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
                                 Toast.makeText(this, "Подключение сохранено", Toast.LENGTH_SHORT).show()
                                 dialog.dismiss()
                                 } catch (error: Exception) {
-                                    Toast.makeText(this, "Не удалось сохранить подключение. Проверьте данные и попробуйте снова.", Toast.LENGTH_LONG).show()
+                                    android.util.Log.e("SSTPSwitcher", "Profile save failed", error)
+                                    val reason = error.message?.takeIf { it.isNotBlank() } ?: error.javaClass.simpleName
+                                    Toast.makeText(this, "Ошибка сохранения: " + error.javaClass.simpleName + ": " + reason, Toast.LENGTH_LONG).show()
                                 }
                             }
                         }
