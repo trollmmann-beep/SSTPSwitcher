@@ -20,13 +20,6 @@ def replace_once(source, old, new, label):
 
 text = replace_once(
     text,
-    "import android.net.Uri\n",
-    "import android.net.Uri\n",
-    "unused import anchor",
-) if "import android.net.Uri\n" in text else text
-
-text = replace_once(
-    text,
     "import android.os.Build\n",
     "import android.os.Build\nimport android.os.Handler\nimport android.os.Looper\nimport android.net.VpnService\n",
     "Android imports",
