@@ -33,10 +33,10 @@ text = replace_once(
 )
 text = replace_once(
     text,
-    "import kittoku.osc.service.SstpVpnService\n",
-    "import kittoku.osc.service.SstpVpnService\nimport kittoku.osc.service.ACTION_VPN_CONNECT\nimport kittoku.osc.service.ACTION_VPN_DISCONNECT\n",
+    "import kittoku.osc.preference.serializeProfile\\n",
+    "import kittoku.osc.preference.serializeProfile\\nimport kittoku.osc.service.SstpVpnService\\nimport kittoku.osc.service.ACTION_VPN_CONNECT\\nimport kittoku.osc.service.ACTION_VPN_DISCONNECT\\n",
     "VPN service imports",
-) if "import kittoku.osc.service.SstpVpnService\n" in text else text
+)
 
 # Activity Result contract is already imported in this upstream file.
 text = replace_once(
