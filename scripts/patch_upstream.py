@@ -261,7 +261,8 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
         val isVpnStarted = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
         val activeName = profiles.entries.firstOrNull { entry ->
             val saved = deserializeProfile(entry.value as String)
-            saved?.stringSetting?.get(OscPrefKey.HOME_HOSTNAME.name) == currentHost &&
+            saved != null &&
+                saved.stringSetting[OscPrefKey.HOME_HOSTNAME.name] == currentHost &&
                 saved.stringSetting[OscPrefKey.HOME_USERNAME.name] == currentUser &&
                 (saved.intSetting[OscPrefKey.SSL_PORT.name] ?: 443) == currentPort
         }?.key?.removePrefix(PROFILE_KEY_HEADER) ?: currentHost
