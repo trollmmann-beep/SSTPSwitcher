@@ -138,6 +138,30 @@ text = replace_once(text,
     "    private lateinit var settingFragment: PreferenceFragmentCompat\n    private lateinit var profileList: LinearLayout\n    private lateinit var statusLabel: TextView\n",
     "modern UI fields")
 text = replace_once(text, "    private fun updatePreferenceView() {", """
+    private fun showSaveDialogSafe() {
+        val hostname = getStringPrefValue(OscPrefKey.HOME_HOSTNAME, prefs)
+        val nameInput = android.widget.EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_TEXT
+            hint = hostname.ifBlank { "Например, Ферма 1" }
+            setSingleLine(true)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Добавить подключение")
+            .setMessage("Укажите название для текущего VPN-профиля.")
+            .setView(nameInput)
+            .setPositiveButton("Сохранить") { _, _ ->
+                val enteredName = nameInput.text.toString().trim()
+                val profileName = enteredName.ifBlank { hostname.ifBlank { "Мой профиль" } }
+                prefs.edit()
+                    .putString(PROFILE_KEY_HEADER + profileName, serializeProfile(prefs))
+                    .apply()
+                refreshProfiles()
+                Toast.makeText(this, "Подключение сохранено", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
     private fun uiText(s: String, size: Float, color: Int, bold: Boolean = false) = TextView(this).apply {
         text = s; textSize = size; setTextColor(color)
@@ -256,7 +280,7 @@ text = replace_once(text, """        title = "${getString(R.string.app_name)}: $
         page.addView(TextView(this).apply {
             text = "+  Сохранить текущее подключение"; textSize = 15f; typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER; setTextColor(Color.WHITE); background = pill(Color.rgb(43,101,232),17)
-            setPadding(dp(16),dp(16),dp(16),dp(16)); setOnClickListener { showSaveDialog() }
+            setPadding(dp(16),dp(16),dp(16),dp(16)); setOnClickListener { showSaveDialogSafe() }
         })
         setContentView(page)
         refreshProfiles()
