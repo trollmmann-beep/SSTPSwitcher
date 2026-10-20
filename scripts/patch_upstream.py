@@ -9,6 +9,18 @@ text = text.replace(
 )
 strings.write_text(text, encoding="utf-8")
 
+menu = root / "app/src/main/res/menu/home_menu.xml"
+menu_text = menu.read_text(encoding="utf-8")
+for source, target in {
+    "Load Profile": "Выбрать подключение",
+    "Save Profile": "Сохранить профиль",
+    "Import Profile": "Импорт профиля",
+    "Export Profile": "Экспорт профиля",
+    "Reload Defaults": "Сбросить настройки",
+}.items():
+    menu_text = menu_text.replace(source, target)
+menu.write_text(menu_text, encoding="utf-8")
+
 activity = root / "app/src/main/java/kittoku/osc/activity/MainActivity.kt"
 text = activity.read_text(encoding="utf-8")
 
@@ -107,5 +119,8 @@ text = replace_once(
     "profile menu handler",
 )
 
+text = text.replace('0 -> "HOME"', '0 -> "Подключение"')
+text = text.replace('1 -> "SETTING"', '1 -> "Настройки"')
+
 activity.write_text(text, encoding="utf-8")
-print("Patched app name and automatic saved-profile switching.")
+print("Patched Russian UI and automatic saved-profile switching.")
