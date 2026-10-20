@@ -168,10 +168,10 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
         form.addView(passInput)
         val scroll = ScrollView(this).apply { addView(form) }
         AlertDialog.Builder(this)
-            .setTitle("Новое подключение")
+            .setTitle("Добавить подключение")
             .setMessage("Введите данные SSTP-сервера")
             .setView(scroll)
-            .setPositiveButton("Сохранить", null)
+            .setPositiveButton("Добавить подключение", null)
             .setNegativeButton("Отмена", null)
             .create().also { dialog ->
                 dialog.setOnShowListener {
@@ -211,7 +211,7 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
                                     .putBoolean(OscPrefKey.HOME_CONNECTOR.name, wasConnected)
                                     .apply()
                                 refreshProfiles()
-                                Toast.makeText(this, "Подключение сохранено", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this, "Подключение добавлено", Toast.LENGTH_SHORT).show()
                                 dialog.dismiss()
                                 } catch (error: Exception) {
                                     android.util.Log.e("SSTPSwitcher", "Profile save failed", error)
