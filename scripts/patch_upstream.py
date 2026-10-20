@@ -139,27 +139,70 @@ text = replace_once(text,
     "modern UI fields")
 text = replace_once(text, "    private fun updatePreferenceView() {", """
     private fun showSaveDialogSafe() {
-        val hostname = getStringPrefValue(OscPrefKey.HOME_HOSTNAME, prefs)
-        val nameInput = android.widget.EditText(this).apply {
-            inputType = InputType.TYPE_CLASS_TEXT
-            hint = hostname.ifBlank { "Например, Ферма 1" }
-            setSingleLine(true)
+        val form = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(8), dp(22), dp(4))
         }
-        AlertDialog.Builder(this)
-            .setTitle("Добавить подключение")
-            .setMessage("Укажите название для текущего VPN-профиля.")
-            .setView(nameInput)
-            .setPositiveButton("Сохранить") { _, _ ->
-                val enteredName = nameInput.text.toString().trim()
-                val profileName = enteredName.ifBlank { hostname.ifBlank { "Мой профиль" } }
-                prefs.edit()
-                    .putString(PROFILE_KEY_HEADER + profileName, serializeProfile(prefs))
-                    .apply()
-                refreshProfiles()
-                Toast.makeText(this, "Подключение сохранено", Toast.LENGTH_SHORT).show()
+        fun field(hintText: String, value: String = "", type: Int = InputType.TYPE_CLASS_TEXT) =
+            android.widget.EditText(this).apply {
+                hint = hintText
+                setSingleLine(true)
+                inputType = type
+                setText(value)
+                textSize = 16f
+                setPadding(dp(12), dp(12), dp(12), dp(12))
+                background = pill(Color.rgb(244,246,250), 12)
+                layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }
             }
+        val nameInput = field("Название, например Ферма 1")
+        val hostInput = field("Адрес сервера", "", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        val portInput = field("Порт SSTP", "443", InputType.TYPE_CLASS_NUMBER)
+        val userInput = field("Логин")
+        val passInput = field("Пароль", "", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        form.addView(nameInput)
+        form.addView(hostInput)
+        form.addView(portInput)
+        form.addView(userInput)
+        form.addView(passInput)
+        val scroll = ScrollView(this).apply { addView(form) }
+        AlertDialog.Builder(this)
+            .setTitle("Новое подключение")
+            .setMessage("Введите данные SSTP-сервера")
+            .setView(scroll)
+            .setPositiveButton("Сохранить", null)
             .setNegativeButton("Отмена", null)
-            .show()
+            .create().also { dialog ->
+                dialog.setOnShowListener {
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        val profileName = nameInput.text.toString().trim()
+                        val hostname = hostInput.text.toString().trim()
+                        val port = portInput.text.toString().trim().toIntOrNull()
+                        val username = userInput.text.toString()
+                        val password = passInput.text.toString()
+                        when {
+                            profileName.isBlank() -> nameInput.error = "Введите название"
+                            hostname.isBlank() -> hostInput.error = "Введите адрес сервера"
+                            port == null || port !in 1..65535 -> portInput.error = "Порт от 1 до 65535"
+                            username.isBlank() -> userInput.error = "Введите логин"
+                            password.isBlank() -> passInput.error = "Введите пароль"
+                            else -> {
+                                prefs.edit()
+                                    .putString(OscPrefKey.HOME_HOSTNAME.name, hostname)
+                                    .putInt(OscPrefKey.SSL_PORT.name, port)
+                                    .putString(OscPrefKey.HOME_USERNAME.name, username)
+                                    .putString(OscPrefKey.HOME_PASSWORD.name, password)
+                                    .putBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
+                                    .putString(PROFILE_KEY_HEADER + profileName, serializeProfile(prefs))
+                                    .apply()
+                                refreshProfiles()
+                                Toast.makeText(this, "Подключение сохранено", Toast.LENGTH_SHORT).show()
+                                dialog.dismiss()
+                            }
+                        }
+                    }
+                }
+                dialog.show()
+            }
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -207,7 +250,23 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
                 setPadding(0, dp(5), 0, 0)
             })
             card.addView(info)
-            card.addView(uiText("Подключить  ›", 13f, Color.rgb(42,103,230), true))
+            val profileSwitch = android.widget.Switch(this).apply {
+                val saved = prefs.getString(key, null)?.let { deserializeProfile(it) }
+                val savedHost = saved?.stringSetting?.get(OscPrefKey.HOME_HOSTNAME.name).orEmpty()
+                val currentHost = getStringPrefValue(OscPrefKey.HOME_HOSTNAME, prefs)
+                isChecked = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false) && savedHost == currentHost
+                contentDescription = "Включить подключение ${key.removePrefix(PROFILE_KEY_HEADER)}"
+                setOnCheckedChangeListener { _, enabled ->
+                    if (enabled) {
+                        selectProfile(key)
+                    } else if (savedHost == getStringPrefValue(OscPrefKey.HOME_HOSTNAME, prefs) &&
+                        prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false)) {
+                        startVpnService(ACTION_VPN_DISCONNECT)
+                        statusLabel.text = "Отключение…"
+                    }
+                }
+            }
+            card.addView(profileSwitch)
             card.setOnClickListener { selectProfile(key) }
             profileList.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
         }
