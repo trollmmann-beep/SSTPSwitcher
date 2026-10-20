@@ -1,6 +1,6 @@
 from pathlib import Path
 
-root = Path(".")
+root = Path("upstream")
 strings = root / "app/src/main/res/values/strings.xml"
 text = strings.read_text(encoding="utf-8")
 text = text.replace(
