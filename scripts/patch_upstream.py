@@ -189,27 +189,38 @@ text = replace_once(text, "    private fun updatePreferenceView() {", """
                             password.isBlank() -> passInput.error = "Введите пароль"
                             else -> {
                                 try {
-                                val previousHost = prefs.all[OscPrefKey.HOME_HOSTNAME.name] as? String ?: ""
-                                val previousPort = (prefs.all[OscPrefKey.SSL_PORT.name] as? Int) ?: 443
-                                val previousUsername = prefs.all[OscPrefKey.HOME_USERNAME.name] as? String ?: ""
-                                val previousPassword = prefs.all[OscPrefKey.HOME_PASSWORD.name] as? String ?: ""
-                                val wasConnected = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
-                                prefs.edit()
+                                // Build the new profile in an isolated preference store.
+                                // Never overwrite live VPN settings just to serialize a profile.
+                                val draftPrefs = getSharedPreferences("sstp_profile_draft", MODE_PRIVATE)
+                                val draftEditor = draftPrefs.edit().clear()
+                                prefs.all.forEach { (key, value) ->
+                                    when (value) {
+                                        is String -> draftEditor.putString(key, value)
+                                        is Int -> draftEditor.putInt(key, value)
+                                        is Long -> draftEditor.putLong(key, value)
+                                        is Float -> draftEditor.putFloat(key, value)
+                                        is Boolean -> draftEditor.putBoolean(key, value)
+                                        is Set<*> -> {
+                                            val stringSet = value.filterIsInstance<String>().toSet()
+                                            draftEditor.putStringSet(key, stringSet)
+                                        }
+                                    }
+                                }
+                                draftEditor
                                     .putString(OscPrefKey.HOME_HOSTNAME.name, hostname)
                                     .putInt(OscPrefKey.SSL_PORT.name, port)
                                     .putString(OscPrefKey.HOME_USERNAME.name, username)
                                     .putString(OscPrefKey.HOME_PASSWORD.name, password)
                                     .putBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
                                     .apply()
-                                val serializedProfile = serializeProfile(prefs)
+                                val serializedProfile = serializeProfile(draftPrefs)
+                                if (serializedProfile.isBlank()) {
+                                    throw IllegalStateException("Сформирован пустой профиль")
+                                }
                                 prefs.edit()
                                     .putString(PROFILE_KEY_HEADER + profileName, serializedProfile)
-                                    .putString(OscPrefKey.HOME_HOSTNAME.name, previousHost)
-                                    .putInt(OscPrefKey.SSL_PORT.name, previousPort)
-                                    .putString(OscPrefKey.HOME_USERNAME.name, previousUsername)
-                                    .putString(OscPrefKey.HOME_PASSWORD.name, previousPassword)
-                                    .putBoolean(OscPrefKey.HOME_CONNECTOR.name, wasConnected)
                                     .apply()
+                                draftPrefs.edit().clear().apply()
                                 refreshProfiles()
                                 Toast.makeText(this, "Подключение добавлено", Toast.LENGTH_SHORT).show()
                                 dialog.dismiss()
