@@ -404,7 +404,7 @@ text = replace_once(text, """        title = "${getString(R.string.app_name)}: $
         profileList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0,dp(14),0,dp(10)) }
         scroll.addView(profileList); page.addView(scroll, LinearLayout.LayoutParams(-1,0,1f))
         page.addView(TextView(this).apply {
-            text = "+  Сохранить текущее подключение"; textSize = 15f; typeface = Typeface.DEFAULT_BOLD
+            text = "+  Добавить подключение"; textSize = 15f; typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER; setTextColor(Color.WHITE); background = pill(Color.rgb(43,101,232),17)
             setPadding(dp(16),dp(16),dp(16),dp(16)); setOnClickListener { showSaveDialogSafe() }
         })
