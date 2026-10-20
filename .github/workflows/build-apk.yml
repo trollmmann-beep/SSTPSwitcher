@@ -11,6 +11,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout switcher repository
         uses: actions/checkout@v4
@@ -40,7 +41,7 @@ jobs:
         working-directory: upstream
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
+          ./gradlew --no-daemon --console=plain --stacktrace assembleDebug
 
       - name: Publish APK
         uses: actions/upload-artifact@v4
