@@ -47,6 +47,16 @@ settings_path = root / "app/src/main/res/xml/settings.xml"
 settings = settings_path.read_text(encoding="utf-8") if settings_path.exists() else ""
 require("Журнал событий" in settings, "Settings headings were not translated")
 
+# Main UX regression checks: saved profiles are visible on the main screen; advanced settings are hidden.
+home_fragment_path = root / "app/src/main/java/kittoku/osc/fragment/HomeFragment.kt"
+home_fragment = home_fragment_path.read_text(encoding="utf-8") if home_fragment_path.exists() else ""
+for anchor in ("Сохранённые подключения", "Добавить подключение", "refreshSavedConnections",
+               "serializeProfile(prefs)", "activateSavedConnection", "Переименовать", "Удалить"):
+    require(anchor in home_fragment, f"Saved-connections UI is missing: {anchor}")
+require("override fun getItemCount() = 1" in activity, "Advanced settings page is still exposed in the main pager")
+require("binding.tabBar.visibility = android.view.View.GONE" in activity, "Main screen tabs should be hidden")
+
+
 # User-facing regressions: login order/label, no technical title, readable theme, original icon.
 common_path = root / "app/src/main/java/kittoku/osc/preference/custom/StringPreference.kt"
 common = common_path.read_text(encoding="utf-8") if common_path.exists() else ""
