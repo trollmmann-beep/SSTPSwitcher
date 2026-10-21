@@ -41,9 +41,12 @@ jobs:
       - name: Apply SSTP Switcher profile selector
         run: python3 scripts/patch_upstream.py
 
+      - name: Apply profile management and ordering fixes
+        run: python3 scripts/fix_profile_management.py
+
       - name: Run pre-build regression checks
         run: |
-          python3 -m py_compile scripts/patch_upstream.py scripts/verify_patched_project.py
+          python3 -m py_compile scripts/patch_upstream.py scripts/fix_profile_management.py scripts/verify_patched_project.py
           python3 scripts/verify_patched_project.py
 
       - name: Build debug APK
