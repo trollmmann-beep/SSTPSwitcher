@@ -207,7 +207,7 @@ for source, target in {
 }.items():
     # Replace only visible XML attribute values, never class names, tags, or preference keys.
     settings_text = re.sub(
-        r'((?:android:)?title\\s*=\\s*["\\'])' + re.escape(source) + r'(["\\'])',
+        r"((?:android:)?title\s*=\s*['\"])" + re.escape(source) + r"(['\"])",
         lambda match: match.group(1) + target + match.group(2),
         settings_text,
     )
