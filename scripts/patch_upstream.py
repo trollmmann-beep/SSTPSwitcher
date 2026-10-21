@@ -193,6 +193,7 @@ theme.write_text(theme_text, encoding="utf-8")
 # Translate visible preference category headings without changing any keys or behavior.
 settings = root / "app/src/main/res/xml/settings.xml"
 settings_text = settings.read_text(encoding="utf-8")
+import re
 for source, target in {
     "SSL Layer": "Защита соединения",
     "HTTP Proxy": "Прокси-сервер",
@@ -204,7 +205,12 @@ for source, target in {
     "Reconnection": "Переподключение",
     "Log": "Журнал событий",
 }.items():
-    settings_text = settings_text.replace(source, target)
+    # Replace only visible XML attribute values, never class names, tags, or preference keys.
+    settings_text = re.sub(
+        r'((?:android:)?title\\s*=\\s*["\\'])' + re.escape(source) + r'(["\\'])',
+        lambda match: match.group(1) + target + match.group(2),
+        settings_text,
+    )
 settings.write_text(settings_text, encoding="utf-8")
 
 # Keep the existing VPN engine and profile operations untouched.
