@@ -50,7 +50,7 @@ require("Журнал событий" in settings, "Settings headings were not t
 # Main UX regression checks: every profile has its own editable fields, switch, and status light.
 home_fragment_path = root / "app/src/main/java/kittoku/osc/fragment/HomeFragment.kt"
 home_fragment = home_fragment_path.read_text(encoding="utf-8") if home_fragment_path.exists() else ""
-for anchor in ("Сохранённые подключения", "Добавить подключение", "refreshSavedConnections",
+for anchor in ("Подключения", "Добавить подключение", "refreshSavedConnections",
                "PROFILE_FIELD.", "HOME_HOSTNAME.name", "HOME_USERNAME.name", "HOME_PASSWORD.name",
                "onConnectionChanged", "ACTIVE_PROFILE_NAME", "Переименовать", "Удалить"):
     require(anchor in home_fragment, f"Saved-connections UI is missing: {anchor}")
