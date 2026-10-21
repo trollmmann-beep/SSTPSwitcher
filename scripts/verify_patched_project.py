@@ -47,6 +47,28 @@ settings_path = root / "app/src/main/res/xml/settings.xml"
 settings = settings_path.read_text(encoding="utf-8") if settings_path.exists() else ""
 require("Журнал событий" in settings, "Settings headings were not translated")
 
+# User-facing regressions: login order/label, no technical title, readable theme, original icon.
+common_path = root / "app/src/main/java/kittoku/osc/preference/custom/StringPreference.kt"
+common = common_path.read_text(encoding="utf-8") if common_path.exists() else ""
+require('preferenceTitle = "Логин"' in common, "Login label is missing or not translated")
+require(common.find('preferenceTitle = "Логин"') < common.find('preferenceTitle = "Пароль"') if 'preferenceTitle = "Пароль"' in common else common.find('preferenceTitle = "Логин"') < common.find('preferenceTitle = "Password"'), "Login must appear before password")
+
+require('title = ""' in activity, "Technical app/version title is still visible")
+manifest_path = root / "app/src/main/AndroidManifest.xml"
+manifest = manifest_path.read_text(encoding="utf-8") if manifest_path.exists() else ""
+require('android:icon="@drawable/ic_sstp_switcher"' in manifest, "Custom SSTP Switcher icon is not configured")
+icon_path = root / "app/src/main/res/drawable/ic_sstp_switcher.xml"
+require(icon_path.exists(), "Original SSTP Switcher icon resource is missing")
+
+for theme_path in (
+    root / "app/src/main/res/values/themes.xml",
+    root / "app/src/main/res/values-night/themes.xml",
+):
+    if theme_path.exists():
+        theme = theme_path.read_text(encoding="utf-8")
+        require("Theme.MaterialComponents.Light.DarkActionBar" in theme, f"Theme is not forced to light mode: {theme_path}")
+        require('android:textColorPrimary">#17243A</item>' in theme, f"Primary text contrast is not set: {theme_path}")
+
 if errors:
     print("PRE-BUILD REGRESSION CHECKS FAILED:")
     for error in errors:
