@@ -66,6 +66,8 @@ poll_end = home_fragment.find("private fun showAddConnectionDialog", poll_start)
 poll = home_fragment[poll_start:poll_end] if poll_start >= 0 and poll_end > poll_start else ""
 require("connectivity.allNetworks.any" in poll, "VPN status check should inspect all available networks")
 require("card?.updateStatus(2)" in poll and "card?.updateStatus(1)" in poll, "Status light should update without rebuilding the profile list")
+require("pollConnectionStatus(name, 1)" in poll, "VPN status monitoring should continue after connection")
+require('pollConnectionStatus(activeName)' in home_fragment, "Saved VPN status should be reconciled after app restart")
 first_transition = poll.find("} else if (attempt >= 45)")
 require(first_transition >= 0 and "refreshSavedConnections()" not in poll[:first_transition],
         "Connection polling must not repeatedly rebuild editable profile cards")
