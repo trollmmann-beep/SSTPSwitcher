@@ -249,9 +249,9 @@ for theme_path in (
         marker = '        <!-- Customize your theme here. -->'
         theme_text = theme_text.replace(
             marker,
-            '        <item name="android:textColorPrimary">#17243A</item>\\n'
-            '        <item name="android:textColorSecondary">#68758A</item>\\n'
-            '        <item name="android:windowBackground">@color/screen_background</item>\\n'
+            '        <item name="android:textColorPrimary">#17243A</item>\n'
+            '        <item name="android:textColorSecondary">#68758A</item>\n'
+            '        <item name="android:windowBackground">@color/screen_background</item>\n'
             + marker,
         )
     theme_path.write_text(theme_text, encoding="utf-8")
