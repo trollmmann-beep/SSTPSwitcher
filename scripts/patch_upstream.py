@@ -437,6 +437,13 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
 
         fun bindText(field: EditText, value: String, changed: (String, String, String) -> Unit) {
             field.setText(value)
+            // Explicitly preserve native Android text selection and clipboard actions.
+            // Preference/card containers must not consume the field's long press.
+            field.isFocusable = true
+            field.isFocusableInTouchMode = true
+            field.isLongClickable = true
+            field.setTextIsSelectable(false)
+            field.setOnLongClickListener(null)
             field.setOnFocusChangeListener { _, hasFocus ->
                 if (!hasFocus) changed(address.text.toString(), login.text.toString(), secret.text.toString())
             }
