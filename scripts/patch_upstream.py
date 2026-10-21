@@ -213,5 +213,68 @@ for source, target in {
     )
 settings.write_text(settings_text, encoding="utf-8")
 
+
+# Fix the login label and keep it in the existing username-before-password order.
+common = root / "app/src/main/java/kittoku/osc/preference/custom/StringPreference.kt"
+common_text = common.read_text(encoding="utf-8")
+if common_text.count('override val preferenceTitle = "Username"') != 1:
+    raise SystemExit("Patch failed: expected exactly one Username preference title")
+common_text = common_text.replace('override val preferenceTitle = "Username"', 'override val preferenceTitle = "Логин"', 1)
+common.write_text(common_text, encoding="utf-8")
+
+# Hide the technical app/version string from the top bar while preserving its menu.
+activity = root / "app/src/main/java/kittoku/osc/activity/MainActivity.kt"
+activity_text = activity.read_text(encoding="utf-8")
+activity_text = replace_once(
+    activity_text,
+    'title = "${getString(R.string.app_name)}: ${BuildConfig.VERSION_NAME}"',
+    'title = ""',
+    "hide technical title and version",
+)
+activity.write_text(activity_text, encoding="utf-8")
+
+# Force a light, high-contrast interface even when Android itself uses dark mode.
+for theme_path in (
+    root / "app/src/main/res/values/themes.xml",
+    root / "app/src/main/res/values-night/themes.xml",
+):
+    if not theme_path.exists():
+        continue
+    theme_text = theme_path.read_text(encoding="utf-8")
+    theme_text = theme_text.replace(
+        "Theme.MaterialComponents.DayNight.DarkActionBar",
+        "Theme.MaterialComponents.Light.DarkActionBar",
+    )
+    marker = '        <item name="android:windowBackground">'
+    if '<item name="android:textColorPrimary">' not in theme_text:
+        theme_text = theme_text.replace(
+            marker,
+            '        <item name="android:textColorPrimary">#17243A</item>\\n'
+            '        <item name="android:textColorSecondary">#68758A</item>\\n'
+            '        <item name="android:windowBackground">',
+        )
+    theme_path.write_text(theme_text, encoding="utf-8")
+
+# Use a distinct original vector icon rather than any SSTP Max branding.
+icon = root / "app/src/main/res/drawable/ic_sstp_switcher.xml"
+icon.parent.mkdir(parents=True, exist_ok=True)
+icon.write_text('''<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path android:fillColor="#17243A" android:pathData="M24,2 C12,2 4,7 4,7 L4,22 C4,34 13,42 24,46 C35,42 44,34 44,22 L44,7 C44,7 36,2 24,2 Z"/>
+    <path android:fillColor="#3978F6" android:pathData="M14,16 L22,16 L22,20 L18,20 L18,28 L22,28 L22,32 L14,32 Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M26,16 L34,16 L34,20 L30,20 L30,28 L34,28 L34,32 L26,32 Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M20,22 L28,22 L28,26 L20,26 Z"/>
+</vector>
+''', encoding="utf-8")
+manifest = root / "app/src/main/AndroidManifest.xml"
+manifest_text = manifest.read_text(encoding="utf-8")
+manifest_text = manifest_text.replace('android:icon="@mipmap/ic_launcher"', 'android:icon="@drawable/ic_sstp_switcher"')
+manifest_text = manifest_text.replace('android:roundIcon="@mipmap/ic_launcher_round"', 'android:roundIcon="@drawable/ic_sstp_switcher"')
+manifest.write_text(manifest_text, encoding="utf-8")
+
 # Keep the existing VPN engine and profile operations untouched.
 print("Patched Russian UI, profile selector, and visual theme.")
