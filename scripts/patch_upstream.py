@@ -257,13 +257,13 @@ for theme_path in (
     )
     if '<item name="android:textColorPrimary">' not in theme_text:
         marker = '        <!-- Customize your theme here. -->'
-        theme_text = theme_text.replace(
-            marker,
+        contrast_items = (
             '        <item name="android:textColorPrimary">#17243A</item>\n'
             '        <item name="android:textColorSecondary">#68758A</item>\n'
-            '        <item name="android:windowBackground">@color/screen_background</item>\n'
-            + marker,
         )
+        if '<item name="android:windowBackground">' not in theme_text:
+            contrast_items += '        <item name="android:windowBackground">@color/screen_background</item>\n'
+        theme_text = theme_text.replace(marker, contrast_items + marker)
     theme_path.write_text(theme_text, encoding="utf-8")
 
 # Use a distinct original vector icon rather than any SSTP Max branding.
