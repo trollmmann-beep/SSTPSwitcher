@@ -84,7 +84,7 @@ icon_path = root / "app/src/main/res/drawable/ic_sstp_switcher.xml"
 require(icon_path.exists(), "Original SSTP Switcher icon resource is missing")
 if icon_path.exists():
     icon = icon_path.read_text(encoding="utf-8")
-    require("#3978F6" in icon and "#FFFFFF" in icon and "android:pathData" in icon, "S-and-lightning icon artwork is missing")
+    require(("#2F6EF2" in icon or "#3978F6" in icon) and "#FFFFFF" in icon and "android:pathData" in icon, "S-and-lightning icon artwork is missing")
 
 for theme_path in (
     root / "app/src/main/res/values/themes.xml",
