@@ -457,9 +457,12 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
     }
 
     private fun refreshPreferenceViews() {
-        val groups = mutableListOf<androidx.preference.PreferenceGroup>(preferenceScreen)
+        val groups = ArrayDeque<androidx.preference.PreferenceGroup>()
+        groups.add(preferenceScreen)
         while (groups.isNotEmpty()) {
-            groups.removeAt(0).forEach { pref ->
+            val group = groups.removeFirst()
+            for (index in 0 until group.preferenceCount) {
+                val pref = group.getPreference(index)
                 if (pref is OscPreference) pref.updateView()
                 if (pref is androidx.preference.PreferenceGroup) groups.add(pref)
             }
