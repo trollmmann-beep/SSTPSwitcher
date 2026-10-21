@@ -546,8 +546,16 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
 """    private fun refreshSavedConnections() {
         if (!::savedCategory.isInitialized) return
         val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
-        savedCategory.removeAll()
         val entries = prefs.all.filter { it.key.startsWith(PROFILE_KEY_HEADER) && it.value is String }.toSortedMap()
+        // Keep existing card instances and EditText views alive. Recreating the whole
+        // PreferenceCategory breaks Android's native long-press clipboard menu on recycled rows.
+        val existingCards = (0 until savedCategory.preferenceCount)
+            .mapNotNull { savedCategory.getPreference(it) as? SavedConnectionPreference }
+            .associateBy { it.key }
+        existingCards.filterKeys { cardKey ->
+            entries.keys.none { "CARD_" + it.removePrefix(PROFILE_KEY_HEADER) == cardKey }
+        }.values.forEach { savedCategory.removePreference(it) }
+        savedCategory.findPreference<Preference>("ADD_CONNECTION")?.let { savedCategory.removePreference(it) }
         entries.keys.forEachIndexed { index, profileKey ->
             val profileName = profileKey.removePrefix(PROFILE_KEY_HEADER)
             val orderKey = "PROFILE_FIELD.$profileName.ORDER"
@@ -569,7 +577,7 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
             val activeName = prefs.getString("ACTIVE_PROFILE_NAME", "").orEmpty()
             val connected = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false) && activeName == name
             val status = prefs.getInt("PROFILE_FIELD.$name.STATUS", if (connected) 1 else 0)
-            val card = SavedConnectionPreference(requireContext()).apply {
+            val card = (existingCards["CARD_$name"] ?: SavedConnectionPreference(requireContext())).apply {
                 key = "CARD_$name"
                 title = name
                 order = entries.keys.indexOf(entry.key)
@@ -624,7 +632,11 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
                 }
                 onManage = { showProfileActions(entry.key, name) }
             }
-            savedCategory.addPreference(card)
+            if (existingCards["CARD_$name"] == null) {
+                savedCategory.addPreference(card)
+            } else {
+                card.notifyChanged()
+            }
         }
         savedCategory.addPreference(Preference(requireContext()).apply {
             key = "ADD_CONNECTION"
