@@ -51,7 +51,12 @@ require("Журнал событий" in settings, "Settings headings were not t
 common_path = root / "app/src/main/java/kittoku/osc/preference/custom/StringPreference.kt"
 common = common_path.read_text(encoding="utf-8") if common_path.exists() else ""
 require('preferenceTitle = "Логин"' in common, "Login label is missing or not translated")
-require(common.find('preferenceTitle = "Логин"') < common.find('preferenceTitle = "Пароль"') if 'preferenceTitle = "Пароль"' in common else common.find('preferenceTitle = "Логин"') < common.find('preferenceTitle = "Password"'), "Login must appear before password")
+password_path = root / "app/src/main/java/kittoku/osc/preference/custom/PasswordPreference.kt"
+password = password_path.read_text(encoding="utf-8") if password_path.exists() else ""
+require('preferenceTitle = "Пароль"' in password, "Password label is missing or not translated")
+home_xml_path = root / "app/src/main/res/xml/home.xml"
+home_xml = home_xml_path.read_text(encoding="utf-8") if home_xml_path.exists() else ""
+require(home_xml.find("HomeUsernamePreference") >= 0 and home_xml.find("HomeUsernamePreference") < home_xml.find("HomePasswordPreference"), "Login must appear before password")
 
 require('title = ""' in activity, "Technical app/version title is still visible")
 manifest_path = root / "app/src/main/AndroidManifest.xml"
