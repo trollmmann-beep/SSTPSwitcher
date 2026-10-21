@@ -58,7 +58,7 @@ home_xml_path = root / "app/src/main/res/xml/home.xml"
 home_xml = home_xml_path.read_text(encoding="utf-8") if home_xml_path.exists() else ""
 require(home_xml.find("HomeUsernamePreference") >= 0 and home_xml.find("HomeUsernamePreference") < home_xml.find("HomePasswordPreference"), "Login must appear before password")
 
-require('title = ""' in activity, "Technical app/version title is still visible")
+require('BuildConfig.VERSION_NAME' not in activity and 'title = "${getString(R.string.app_name)}:' not in activity, "Technical app/version title is still visible")
 manifest_path = root / "app/src/main/AndroidManifest.xml"
 manifest = manifest_path.read_text(encoding="utf-8") if manifest_path.exists() else ""
 require('android:icon="@drawable/ic_sstp_switcher"' in manifest, "Custom SSTP Switcher icon is not configured")
@@ -71,7 +71,7 @@ for theme_path in (
 ):
     if theme_path.exists():
         theme = theme_path.read_text(encoding="utf-8")
-        require("Theme.MaterialComponents.Light.DarkActionBar" in theme, f"Theme is not forced to light mode: {theme_path}")
+        require("Theme.MaterialComponents.Light.NoActionBar" in theme, f"Theme must be light and hide the action bar: {theme_path}")
         require('android:textColorPrimary">#17243A</item>' in theme, f"Primary text contrast is not set: {theme_path}")
 
 if errors:
