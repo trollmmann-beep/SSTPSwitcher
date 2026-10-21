@@ -401,7 +401,7 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
     var username: String = ""
     var password: String = ""
     var connected: Boolean = false
-    var enabled: Boolean = false
+    var switchOn: Boolean = false
     var status: Int = 0
     var onFieldsChanged: ((String, String, String) -> Unit)? = null
     var onConnectionChanged: ((Boolean, String, String, String) -> Unit)? = null
@@ -451,7 +451,7 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
         })
 
         toggle.setOnCheckedChangeListener(null)
-        toggle.isChecked = enabled
+        toggle.isChecked = switchOn
         toggle.setOnCheckedChangeListener { _, checked ->
             onConnectionChanged?.invoke(checked, address.text.toString(), login.text.toString(), secret.text.toString())
         }
@@ -558,7 +558,7 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
                 username = login
                 this.password = password
                 this.connected = connected
-                this.enabled = connected
+                this.switchOn = connected
                 this.status = status
                 onFieldsChanged = { h, u, p ->
                     prefs.edit().putString(hostKey, h).putString(loginKey, u).putString(passwordKey, p).apply()
