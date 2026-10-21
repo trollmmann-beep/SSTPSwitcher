@@ -747,15 +747,15 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
     private fun startVpnService(action: String) {""", "profile card callbacks and management")
 home_path.write_text(home, encoding="utf-8")
 
-# Use an S-shaped mark and lightning bolt as the original app icon.
+# Restore the original SSTP Switcher icon used in the earliest builds: blue square, white S and lightning.
 icon = root / "app/src/main/res/drawable/ic_sstp_switcher.xml"
 icon.write_text('''<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="48dp" android:height="48dp"
-    android:viewportWidth="48" android:viewportHeight="48">
-    <path android:fillColor="#17243A" android:pathData="M24,2 A22,22 0,1 0,24 46 A22,22 0,1 0,24 2 Z"/>
-    <path android:fillColor="#FFFFFF" android:pathData="M30,11 C27,8 21,8 17,11 C11,15 13,21 20,23 L25,25 C28,26 28,29 25,31 C22,33 18,31 16,29 L12,33 C16,38 24,39 29,35 C35,31 33,24 26,21 L21,19 C18,18 19,15 22,14 C25,13 28,15 30,17 Z"/>
-    <path android:fillColor="#3978F6" android:pathData="M27,15 L19,27 L24,27 L21,35 L31,22 L26,22 Z"/>
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#2F6EF2" android:pathData="M0,0h108v108h-108z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M68,28c-4,-4 -10,-6 -17,-6 -13,0 -22,8 -22,19 0,10 7,15 20,18l7,2c7,2 10,4 10,8 0,5 -5,8 -12,8 -8,0 -15,-4 -20,-10l-9,10c7,9 17,14 29,14 16,0 27,-9 27,-22 0,-10 -7,-16 -21,-20l-8,-2c-6,-2 -8,-4 -8,-7 0,-4 4,-7 10,-7 5,0 10,2 14,6z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M77,18l-4,12h8l-7,15 19,-20h-10l4,-7z"/>
 </vector>
 ''', encoding="utf-8")
 
