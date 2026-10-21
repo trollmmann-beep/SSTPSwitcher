@@ -289,21 +289,184 @@ manifest.write_text(manifest_text, encoding="utf-8")
 
 
 
-# Show saved connections directly below the connection fields on the main screen.
+# Replace the one-off form with repeated connection cards: address, login, password, toggle, and a status light.
+home_xml = root / "app/src/main/res/xml/home.xml"
+home_xml.write_text('''<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" />
+''', encoding="utf-8")
+
+layout_dir = root / "app/src/main/res/layout"
+layout_dir.mkdir(parents=True, exist_ok=True)
+(layout_dir / "preference_saved_connection.xml").write_text('''<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="14dp"
+    android:background="@drawable/saved_connection_card">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+        <TextView
+            android:id="@android:id/title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#17243A"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/saved_status_dot"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:gravity="center"
+            android:text="●"
+            android:textSize="23sp"
+            android:textColor="#D64545" />
+    </LinearLayout>
+    <EditText
+        android:id="@+id/saved_hostname"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:singleLine="true"
+        android:inputType="textUri"
+        android:hint="Адрес сервера"
+        android:textColor="#17243A"
+        android:textColorHint="#68758A"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp" />
+    <EditText
+        android:id="@+id/saved_username"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:singleLine="true"
+        android:inputType="text"
+        android:hint="Логин"
+        android:textColor="#17243A"
+        android:textColorHint="#68758A"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp" />
+    <EditText
+        android:id="@+id/saved_password"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:singleLine="true"
+        android:inputType="textPassword"
+        android:hint="Пароль"
+        android:textColor="#17243A"
+        android:textColorHint="#68758A"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp" />
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/saved_connect_switch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Подключение"
+        android:textColor="#17243A"
+        android:paddingTop="6dp"
+        android:paddingBottom="2dp" />
+</LinearLayout>
+''', encoding="utf-8")
+(root / "app/src/main/res/drawable/saved_connection_card.xml").write_text('''<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FFFFFF" />
+    <corners android:radius="14dp" />
+    <stroke android:width="1dp" android:color="#DCE3ED" />
+</shape>
+''', encoding="utf-8")
+
+saved_pref = root / "app/src/main/java/kittoku/osc/preference/custom/SavedConnectionPreference.kt"
+saved_pref.write_text('''package kittoku.osc.preference.custom
+
+import android.content.Context
+import android.text.InputType
+import android.text.TextWatcher
+import android.text.Editable
+import android.util.AttributeSet
+import android.view.View
+import android.widget.EditText
+import android.widget.TextView
+import androidx.appcompat.widget.SwitchCompat
+import androidx.preference.Preference
+import androidx.preference.PreferenceViewHolder
+import kittoku.osc.R
+
+internal class SavedConnectionPreference(context: Context, attrs: AttributeSet) : Preference(context, attrs) {
+    var hostname: String = ""
+    var username: String = ""
+    var password: String = ""
+    var connected: Boolean = false
+    var onFieldsChanged: ((String, String, String) -> Unit)? = null
+    var onConnectionChanged: ((Boolean, String, String, String) -> Unit)? = null
+    var onManage: (() -> Unit)? = null
+
+    init {
+        layoutResource = R.layout.preference_saved_connection
+        isSelectable = false
+    }
+
+    override fun onBindViewHolder(holder: PreferenceViewHolder) {
+        super.onBindViewHolder(holder)
+        val address = holder.findViewById(R.id.saved_hostname) as EditText
+        val login = holder.findViewById(R.id.saved_username) as EditText
+        val secret = holder.findViewById(R.id.saved_password) as EditText
+        val toggle = holder.findViewById(R.id.saved_connect_switch) as SwitchCompat
+        val dot = holder.findViewById(R.id.saved_status_dot) as TextView
+        val titleView = holder.findViewById(android.R.id.title) as TextView
+
+        address.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+        login.inputType = InputType.TYPE_CLASS_TEXT
+        secret.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+
+        fun bindText(field: EditText, value: String, changed: (String, String, String) -> Unit) {
+            field.setText(value)
+            field.setOnFocusChangeListener { _, hasFocus ->
+                if (!hasFocus) changed(address.text.toString(), login.text.toString(), secret.text.toString())
+            }
+            field.setOnEditorActionListener { _, _, _ ->
+                changed(address.text.toString(), login.text.toString(), secret.text.toString())
+                false
+            }
+        }
+        bindText(address, hostname) { h, u, p -> hostname = h; username = u; password = p; onFieldsChanged?.invoke(h, u, p) }
+        bindText(login, username) { h, u, p -> hostname = h; username = u; password = p; onFieldsChanged?.invoke(h, u, p) }
+        bindText(secret, password) { h, u, p -> hostname = h; username = u; password = p; onFieldsChanged?.invoke(h, u, p) }
+
+        titleView.setOnLongClickListener {
+            onManage?.invoke()
+            true
+        }
+        dot.text = "●"
+        dot.setTextColor(if (connected) 0xFF20A464.toInt() else 0xFFD64545.toInt())
+
+        toggle.setOnCheckedChangeListener(null)
+        toggle.isChecked = connected
+        toggle.setOnCheckedChangeListener { _, checked ->
+            onConnectionChanged?.invoke(checked, address.text.toString(), login.text.toString(), secret.text.toString())
+        }
+    }
+}
+''', encoding="utf-8")
+
 home_path = root / "app/src/main/java/kittoku/osc/fragment/HomeFragment.kt"
 home = home_path.read_text(encoding="utf-8")
 home = replace_once(home, "import android.os.Bundle\n",
-    "import android.os.Bundle\nimport android.os.Handler\nimport android.os.Looper\nimport android.text.InputType\nimport android.widget.EditText\n",
-    "profile list imports")
+    "import android.os.Bundle\nimport android.text.InputType\nimport android.widget.EditText\n",
+    "profile card imports")
 home = replace_once(home, "import androidx.preference.Preference\n",
-    "import androidx.preference.Preference\nimport androidx.preference.PreferenceCategory\nimport androidx.preference.PreferenceManager\nimport androidx.preference.forEach\nimport androidx.appcompat.app.AlertDialog\n",
-    "profile list UI imports")
+    "import androidx.preference.Preference\nimport androidx.preference.PreferenceCategory\nimport androidx.preference.PreferenceManager\nimport androidx.appcompat.app.AlertDialog\n",
+    "profile category imports")
 home = replace_once(home, "import kittoku.osc.preference.OscPrefKey\n",
-    "import kittoku.osc.preference.OscPrefKey\nimport kittoku.osc.preference.PROFILE_KEY_HEADER\nimport kittoku.osc.preference.deserializeProfile\nimport kittoku.osc.preference.importProfile\nimport kittoku.osc.preference.serializeProfile\n",
-    "profile serialization imports")
+    "import kittoku.osc.preference.OscPrefKey\nimport kittoku.osc.preference.PROFILE_KEY_HEADER\nimport kittoku.osc.preference.deserializeProfile\nimport kittoku.osc.preference.importProfile\nimport kittoku.osc.preference.serializeProfile\nimport kittoku.osc.preference.custom.SavedConnectionPreference\n",
+    "profile card engine imports")
 home = replace_once(home, "import kittoku.osc.preference.custom.HomeConnectorPreference\n",
     "import kittoku.osc.preference.custom.HomeConnectorPreference\nimport kittoku.osc.preference.custom.OscPreference\n",
-    "preference refresh import")
+    "refresh settings import")
 home = replace_once(home,
 """    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.home, rootKey)
@@ -314,146 +477,190 @@ home = replace_once(home,
         setPreferencesFromResource(R.xml.home, rootKey)
         savedCategory = PreferenceCategory(requireContext()).apply {
             key = "SAVED_CONNECTIONS"
-            title = "Сохранённые подключения"
+            title = "Подключения"
         }
         preferenceScreen.addPreference(savedCategory)
+        val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        val savedKeys = prefs.all.keys.filter { it.startsWith(PROFILE_KEY_HEADER) }
+        if (savedKeys.isEmpty()) {
+            val existingHost = prefs.getString(OscPrefKey.HOME_HOSTNAME.name, "").orEmpty()
+            if (existingHost.isNotBlank()) {
+                prefs.edit().putString(PROFILE_KEY_HEADER + "Подключение 1", serializeProfile(prefs)).apply()
+            }
+        }
         refreshSavedConnections()
-    }""", "saved connection category")
+    }""", "profile cards screen")
+home = replace_once(home,
+"""    private fun attachConnectorListener() {
+        findPreference<HomeConnectorPreference>(OscPrefKey.HOME_CONNECTOR.name)!!.also {""",
+"""    private fun attachConnectorListener() {
+        // Connection switches are rendered per saved profile card.
+        findPreference<HomeConnectorPreference>(OscPrefKey.HOME_CONNECTOR.name)?.also {""", "optional legacy connector")
+# Remove the legacy connector callback body; the switch no longer exists in home.xml.
+home = replace_once(home,
+"""        findPreference<HomeConnectorPreference>(OscPrefKey.HOME_CONNECTOR.name)?.also {
+            it.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, newState ->
+                if (newState == true) {
+                    checkPreferences(preferenceManager.sharedPreferences!!)?.also { message ->
+                        toastInvalidSetting(message, requireContext())
+                        return@OnPreferenceChangeListener false
+                    }
+
+                    VpnService.prepare(requireContext())?.also { intent ->
+                        preparationLauncher.launch(intent)
+                    } ?: startVpnService(ACTION_VPN_CONNECT)
+                } else {
+                    startVpnService(ACTION_VPN_DISCONNECT)
+                }
+
+                true
+            }
+        }""",
+"""        // Each profile card owns its own connection toggle.""", "remove legacy global toggle")
 home = replace_once(home, "    private fun startVpnService(action: String) {",
 """    private fun refreshSavedConnections() {
         if (!::savedCategory.isInitialized) return
         val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
         savedCategory.removeAll()
+        val entries = prefs.all.filter { it.key.startsWith(PROFILE_KEY_HEADER) && it.value is String }.toSortedMap()
+        entries.forEach { entry ->
+            val name = entry.key.removePrefix(PROFILE_KEY_HEADER)
+            val profile = deserializeProfile(entry.value as String)
+            val keySuffix = name
+            val hostKey = "PROFILE_FIELD.$keySuffix.HOST"
+            val loginKey = "PROFILE_FIELD.$keySuffix.LOGIN"
+            val passwordKey = "PROFILE_FIELD.$keySuffix.PASSWORD"
+            val host = prefs.getString(hostKey, profile?.stringSetting?.get(OscPrefKey.HOME_HOSTNAME.name) ?: "").orEmpty()
+            val login = prefs.getString(loginKey, profile?.stringSetting?.get(OscPrefKey.HOME_USERNAME.name) ?: "").orEmpty()
+            val password = prefs.getString(passwordKey, profile?.stringSetting?.get(OscPrefKey.HOME_PASSWORD.name) ?: "").orEmpty()
+            val activeName = prefs.getString("ACTIVE_PROFILE_NAME", "").orEmpty()
+            val connected = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false) && activeName == name
+            val card = SavedConnectionPreference(requireContext(), null).apply {
+                key = "CARD_$name"
+                title = name
+                order = entries.keys.indexOf(entry.key)
+                hostname = host
+                username = login
+                this.password = password
+                this.connected = connected
+                onFieldsChanged = { h, u, p ->
+                    prefs.edit().putString(hostKey, h).putString(loginKey, u).putString(passwordKey, p).apply()
+                }
+                onConnectionChanged = { enabled, h, u, p ->
+                    prefs.edit().putString(hostKey, h).putString(loginKey, u).putString(passwordKey, p).apply()
+                    if (enabled) {
+                        if (h.isBlank() || u.isBlank() || p.isBlank()) {
+                            android.widget.Toast.makeText(requireContext(), "Заполни адрес, логин и пароль", android.widget.Toast.LENGTH_SHORT).show()
+                            refreshSavedConnections()
+                        } else {
+                            val current = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
+                            if (current) startVpnService(ACTION_VPN_DISCONNECT)
+                            val chosen = deserializeProfile(prefs.getString(entry.key, "") ?: "")
+                            if (chosen == null) {
+                                android.widget.Toast.makeText(requireContext(), "Не удалось прочитать профиль", android.widget.Toast.LENGTH_SHORT).show()
+                                refreshSavedConnections()
+                            } else {
+                                chosen.stringSetting[OscPrefKey.HOME_HOSTNAME.name] = h
+                                chosen.stringSetting[OscPrefKey.HOME_USERNAME.name] = u
+                                chosen.stringSetting[OscPrefKey.HOME_PASSWORD.name] = p
+                                importProfile(chosen, prefs)
+                                prefs.edit().putString("ACTIVE_PROFILE_NAME", name).apply()
+                                refreshPreferenceViews()
+                                VpnService.prepare(requireContext())?.also { intent -> preparationLauncher.launch(intent) }
+                                    ?: startVpnService(ACTION_VPN_CONNECT)
+                                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ if (isAdded) refreshSavedConnections() }, 500L)
+                            }
+                        }
+                    } else {
+                        if (connected) {
+                            prefs.edit().putBoolean(OscPrefKey.HOME_CONNECTOR.name, false).apply()
+                            startVpnService(ACTION_VPN_DISCONNECT)
+                        }
+                        refreshSavedConnections()
+                    }
+                }
+                onManage = { showProfileActions(entry.key, name) }
+            }
+            savedCategory.addPreference(card)
+        }
         savedCategory.addPreference(Preference(requireContext()).apply {
             key = "ADD_CONNECTION"
             title = "＋ Добавить подключение"
-            summary = "Сохранить текущие адрес, логин и пароль"
-            order = 0
+            summary = "Добавить ещё один блок с адресом, логином и паролем"
+            order = entries.size + 1
             setOnPreferenceClickListener {
                 showAddConnectionDialog()
                 true
             }
         })
-
-        val profiles = prefs.all
-            .filter { it.key.startsWith(PROFILE_KEY_HEADER) && it.value is String }
-            .toSortedMap()
-        if (profiles.isEmpty()) {
-            savedCategory.addPreference(Preference(requireContext()).apply {
-                key = "NO_SAVED_CONNECTIONS"
-                title = "Нет сохранённых подключений"
-                summary = "Заполните данные выше и нажмите «Добавить подключение»."
-                isSelectable = false
-                order = 1
-            })
-            return
-        }
-
-        profiles.entries.forEachIndexed { index, entry ->
-            val name = entry.key.removePrefix(PROFILE_KEY_HEADER)
-            savedCategory.addPreference(Preference(requireContext()).apply {
-                key = "SAVED_CONNECTION_$index"
-                title = name
-                summary = "Нажмите, чтобы подключиться"
-                order = index + 1
-                setOnPreferenceClickListener {
-                    AlertDialog.Builder(requireContext())
-                        .setTitle(name)
-                        .setItems(arrayOf("Подключиться", "Переименовать", "Удалить")) { _, action ->
-                            when (action) {
-                                0 -> activateSavedConnection(entry.key, entry.value as String)
-                                1 -> renameSavedConnection(entry.key, name)
-                                2 -> AlertDialog.Builder(requireContext())
-                                    .setMessage("Удалить подключение «$name»?")
-                                    .setPositiveButton("Удалить") { _, _ ->
-                                        prefs.edit().remove(entry.key).apply()
-                                        refreshSavedConnections()
-                                    }
-                                    .setNegativeButton("Отмена", null)
-                                    .show()
-                            }
-                        }
-                        .setNegativeButton("Отмена", null)
-                        .show()
-                    true
-                }
-            })
-        }
     }
 
     private fun showAddConnectionDialog() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
-        val hostname = prefs.getString(OscPrefKey.HOME_HOSTNAME.name, "").orEmpty()
         val input = EditText(requireContext()).apply {
             inputType = InputType.TYPE_CLASS_TEXT
-            hint = "Например, Ферма 1"
-            setText(hostname)
-            setSelection(text.length)
+            hint = "Например, Ферма 2"
         }
         AlertDialog.Builder(requireContext())
             .setTitle("Добавить подключение")
-            .setMessage("Задайте имя для списка подключений.")
+            .setMessage("Укажи название нового блока.")
             .setView(input)
-            .setPositiveButton("Сохранить") { _, _ ->
-                val name = input.text.toString().trim().ifBlank {
-                    hostname.ifBlank { "Подключение" }
-                }
+            .setPositiveButton("Добавить") { _, _ ->
+                val name = input.text.toString().trim().ifBlank { "Подключение \${prefs.all.keys.count { it.startsWith(PROFILE_KEY_HEADER) } + 1}" }
                 val key = PROFILE_KEY_HEADER + name
-                val existed = prefs.contains(key)
-                prefs.edit().putString(key, serializeProfile(prefs)).apply()
-                refreshSavedConnections()
-                android.widget.Toast.makeText(
-                    requireContext(),
-                    if (existed) "Подключение обновлено" else "Подключение добавлено",
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
-            }
-            .setNegativeButton("Отмена", null)
-            .show()
-    }
-
-    private fun renameSavedConnection(oldKey: String, oldName: String) {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
-        val input = EditText(requireContext()).apply {
-            inputType = InputType.TYPE_CLASS_TEXT
-            setText(oldName)
-            setSelection(text.length)
-        }
-        AlertDialog.Builder(requireContext())
-            .setTitle("Переименовать подключение")
-            .setView(input)
-            .setPositiveButton("Сохранить") { _, _ ->
-                val newName = input.text.toString().trim()
-                if (newName.isNotBlank()) {
-                    val value = prefs.getString(oldKey, null)
-                    if (value != null) {
-                        prefs.edit().putString(PROFILE_KEY_HEADER + newName, value)
-                            .remove(oldKey).apply()
-                        refreshSavedConnections()
-                    }
+                if (prefs.contains(key)) {
+                    android.widget.Toast.makeText(requireContext(), "Такое имя уже есть", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    prefs.edit()
+                        .putString(key, serializeProfile(prefs))
+                        .putString("PROFILE_FIELD.$name.HOST", "")
+                        .putString("PROFILE_FIELD.$name.LOGIN", "")
+                        .putString("PROFILE_FIELD.$name.PASSWORD", "")
+                        .apply()
+                    refreshSavedConnections()
                 }
             }
             .setNegativeButton("Отмена", null)
             .show()
     }
 
-    private fun activateSavedConnection(key: String, serialized: String) {
+    private fun showProfileActions(key: String, name: String) {
         val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
-        val profile = deserializeProfile(serialized) ?: run {
-            android.widget.Toast.makeText(requireContext(), "Не удалось прочитать подключение", android.widget.Toast.LENGTH_SHORT).show()
-            return
-        }
-        val wasConnected = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
-        if (wasConnected) startVpnService(ACTION_VPN_DISCONNECT)
-        importProfile(profile, prefs)
-        refreshPreferenceViews()
-        Handler(Looper.getMainLooper()).postDelayed({
-            if (isAdded) {
-                val permissionIntent = VpnService.prepare(requireContext())
-                if (permissionIntent != null) preparationLauncher.launch(permissionIntent)
-                else startVpnService(ACTION_VPN_CONNECT)
-            }
-        }, if (wasConnected) 1200L else 150L)
+        AlertDialog.Builder(requireContext())
+            .setTitle(name)
+            .setItems(arrayOf("Переименовать", "Удалить")) { _, action ->
+                if (action == 0) {
+                    val input = EditText(requireContext()).apply { setText(name); setSelection(text.length) }
+                    AlertDialog.Builder(requireContext()).setTitle("Переименовать подключение").setView(input)
+                        .setPositiveButton("Сохранить") { _, _ ->
+                            val next = input.text.toString().trim()
+                            if (next.isNotBlank() && next != name && !prefs.contains(PROFILE_KEY_HEADER + next)) {
+                                val editor = prefs.edit().putString(PROFILE_KEY_HEADER + next, prefs.getString(key, "") ?: "").remove(key)
+                                listOf("HOST", "LOGIN", "PASSWORD").forEach { field ->
+                                    val old = "PROFILE_FIELD.$name.$field"
+                                    val value = prefs.getString(old, null)
+                                    if (value != null) editor.putString("PROFILE_FIELD.$next.$field", value)
+                                    editor.remove(old)
+                                }
+                                if (prefs.getString("ACTIVE_PROFILE_NAME", "") == name) editor.putString("ACTIVE_PROFILE_NAME", next)
+                                editor.apply()
+                                refreshSavedConnections()
+                            }
+                        }.setNegativeButton("Отмена", null).show()
+                } else {
+                    AlertDialog.Builder(requireContext()).setMessage("Удалить подключение «$name»?")
+                        .setPositiveButton("Удалить") { _, _ ->
+                            val editor = prefs.edit().remove(key)
+                            listOf("HOST", "LOGIN", "PASSWORD").forEach { editor.remove("PROFILE_FIELD.$name.$it") }
+                            if (prefs.getString("ACTIVE_PROFILE_NAME", "") == name) {
+                                editor.remove("ACTIVE_PROFILE_NAME").putBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
+                                startVpnService(ACTION_VPN_DISCONNECT)
+                            }
+                            editor.apply()
+                            refreshSavedConnections()
+                        }.setNegativeButton("Отмена", null).show()
+                }
+            }.setNegativeButton("Отмена", null).show()
     }
 
     private fun refreshPreferenceViews() {
@@ -470,8 +677,20 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
         refreshSavedConnections()
     }
 
-    private fun startVpnService(action: String) {""", "saved profile list and actions")
+    private fun startVpnService(action: String) {""", "profile card callbacks and management")
 home_path.write_text(home, encoding="utf-8")
+
+# Use an S-shaped mark and lightning bolt as the original app icon.
+icon = root / "app/src/main/res/drawable/ic_sstp_switcher.xml"
+icon.write_text('''<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp"
+    android:viewportWidth="48" android:viewportHeight="48">
+    <path android:fillColor="#17243A" android:pathData="M24,2 A22,22 0,1 0,24 46 A22,22 0,1 0,24 2 Z"/>
+    <path android:fillColor="#FFFFFF" android:pathData="M30,11 C27,8 21,8 17,11 C11,15 13,21 20,23 L25,25 C28,26 28,29 25,31 C22,33 18,31 16,29 L12,33 C16,38 24,39 29,35 C35,31 33,24 26,21 L21,19 C18,18 19,15 22,14 C25,13 28,15 30,17 Z"/>
+    <path android:fillColor="#3978F6" android:pathData="M27,15 L19,27 L24,27 L21,35 L31,22 L26,22 Z"/>
+</vector>
+''', encoding="utf-8")
 
 # Hide the advanced settings page from the everyday screen without changing VPN defaults.
 activity_text = activity.read_text(encoding="utf-8")
