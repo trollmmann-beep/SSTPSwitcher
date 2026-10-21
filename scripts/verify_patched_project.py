@@ -58,8 +58,17 @@ require("override fun getItemCount() = 1" in activity, "Advanced settings page i
 require("binding.tabBar.visibility = android.view.View.GONE" in activity, "Main screen tabs should be hidden")
 card_path = root / "app/src/main/java/kittoku/osc/preference/custom/SavedConnectionPreference.kt"
 card = card_path.read_text(encoding="utf-8") if card_path.exists() else ""
-for anchor in ("saved_hostname", "saved_username", "saved_password", "saved_connect_switch", "saved_status_dot", "0xFF20A464", "0xFFD64545"):
+for anchor in ("saved_hostname", "saved_username", "saved_password", "saved_connect_switch", "saved_status_dot", "0xFF20A464", "0xFFD64545", "fun updateStatus(newStatus: Int)"):
     require(anchor in card, f"Connection card is missing a field/status indicator: {anchor}")
+
+poll_start = home_fragment.find("private fun pollConnectionStatus")
+poll_end = home_fragment.find("private fun showAddConnectionDialog", poll_start)
+poll = home_fragment[poll_start:poll_end] if poll_start >= 0 and poll_end > poll_start else ""
+require("connectivity.allNetworks.any" in poll, "VPN status check should inspect all available networks")
+require("card?.updateStatus(2)" in poll and "card?.updateStatus(1)" in poll, "Status light should update without rebuilding the profile list")
+first_transition = poll.find("} else if (attempt >= 45)")
+require(first_transition >= 0 and "refreshSavedConnections()" not in poll[:first_transition],
+        "Connection polling must not repeatedly rebuild editable profile cards")
 layout_path = root / "app/src/main/res/layout/preference_saved_connection.xml"
 layout = layout_path.read_text(encoding="utf-8") if layout_path.exists() else ""
 for anchor in ("Адрес сервера", "Логин", "Пароль", "saved_connect_switch", "saved_status_dot"):
