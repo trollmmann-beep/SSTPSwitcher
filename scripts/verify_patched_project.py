@@ -47,15 +47,23 @@ settings_path = root / "app/src/main/res/xml/settings.xml"
 settings = settings_path.read_text(encoding="utf-8") if settings_path.exists() else ""
 require("Журнал событий" in settings, "Settings headings were not translated")
 
-# Main UX regression checks: saved profiles are visible on the main screen; advanced settings are hidden.
+# Main UX regression checks: every profile has its own editable fields, switch, and status light.
 home_fragment_path = root / "app/src/main/java/kittoku/osc/fragment/HomeFragment.kt"
 home_fragment = home_fragment_path.read_text(encoding="utf-8") if home_fragment_path.exists() else ""
 for anchor in ("Сохранённые подключения", "Добавить подключение", "refreshSavedConnections",
-               "serializeProfile(prefs)", "activateSavedConnection", "Переименовать", "Удалить"):
+               "PROFILE_FIELD.", "HOME_HOSTNAME.name", "HOME_USERNAME.name", "HOME_PASSWORD.name",
+               "onConnectionChanged", "ACTIVE_PROFILE_NAME", "Переименовать", "Удалить"):
     require(anchor in home_fragment, f"Saved-connections UI is missing: {anchor}")
 require("override fun getItemCount() = 1" in activity, "Advanced settings page is still exposed in the main pager")
 require("binding.tabBar.visibility = android.view.View.GONE" in activity, "Main screen tabs should be hidden")
-
+card_path = root / "app/src/main/java/kittoku/osc/preference/custom/SavedConnectionPreference.kt"
+card = card_path.read_text(encoding="utf-8") if card_path.exists() else ""
+for anchor in ("saved_hostname", "saved_username", "saved_password", "saved_connect_switch", "saved_status_dot", "0xFF20A464", "0xFFD64545"):
+    require(anchor in card, f"Connection card is missing a field/status indicator: {anchor}")
+layout_path = root / "app/src/main/res/layout/preference_saved_connection.xml"
+layout = layout_path.read_text(encoding="utf-8") if layout_path.exists() else ""
+for anchor in ("Адрес сервера", "Логин", "Пароль", "saved_connect_switch", "saved_status_dot"):
+    require(anchor in layout, f"Connection card layout is missing: {anchor}")
 
 # User-facing regressions: login order/label, no technical title, readable theme, original icon.
 common_path = root / "app/src/main/java/kittoku/osc/preference/custom/StringPreference.kt"
@@ -66,7 +74,7 @@ password = password_path.read_text(encoding="utf-8") if password_path.exists() e
 require('preferenceTitle = "Пароль"' in password, "Password label is missing or not translated")
 home_xml_path = root / "app/src/main/res/xml/home.xml"
 home_xml = home_xml_path.read_text(encoding="utf-8") if home_xml_path.exists() else ""
-require(home_xml.find("HomeUsernamePreference") >= 0 and home_xml.find("HomeUsernamePreference") < home_xml.find("HomePasswordPreference"), "Login must appear before password")
+require("HomeUsernamePreference" not in home_xml and "HomePasswordPreference" not in home_xml, "Legacy single-profile form should be replaced by repeated connection cards")
 
 require('BuildConfig.VERSION_NAME' not in activity and 'title = "${getString(R.string.app_name)}:' not in activity, "Technical app/version title is still visible")
 manifest_path = root / "app/src/main/AndroidManifest.xml"
@@ -74,6 +82,9 @@ manifest = manifest_path.read_text(encoding="utf-8") if manifest_path.exists() e
 require('android:icon="@drawable/ic_sstp_switcher"' in manifest, "Custom SSTP Switcher icon is not configured")
 icon_path = root / "app/src/main/res/drawable/ic_sstp_switcher.xml"
 require(icon_path.exists(), "Original SSTP Switcher icon resource is missing")
+if icon_path.exists():
+    icon = icon_path.read_text(encoding="utf-8")
+    require("#3978F6" in icon and "#FFFFFF" in icon and "android:pathData" in icon, "S-and-lightning icon artwork is missing")
 
 for theme_path in (
     root / "app/src/main/res/values/themes.xml",
