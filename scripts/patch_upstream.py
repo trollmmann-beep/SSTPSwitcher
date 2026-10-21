@@ -384,12 +384,15 @@ saved_pref = root / "app/src/main/java/kittoku/osc/preference/custom/SavedConnec
 saved_pref.write_text('''package kittoku.osc.preference.custom
 
 import android.content.Context
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.text.InputType
 import android.text.TextWatcher
 import android.text.Editable
 import android.util.AttributeSet
 import android.view.View
 import android.widget.EditText
+import android.widget.PopupMenu
 import android.widget.TextView
 import androidx.appcompat.widget.SwitchCompat
 import androidx.preference.Preference
@@ -407,9 +410,26 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
     var onConnectionChanged: ((Boolean, String, String, String) -> Unit)? = null
     var onManage: (() -> Unit)? = null
     private var statusDot: TextView? = null
+    private var switchControl: SwitchCompat? = null
+    private var addressField: EditText? = null
+    private var loginField: EditText? = null
+    private var passwordField: EditText? = null
 
-    fun refreshCard() {
-        notifyChanged()
+    // Update the live widgets directly. Calling notifyChanged() here rebinds the row
+    // and destroys the active EditText selection/clipboard interaction.
+    fun updateSwitchState(checked: Boolean) {
+        val toggle = switchControl ?: return
+        if (toggle.isChecked == checked) return
+        toggle.setOnCheckedChangeListener(null)
+        toggle.isChecked = checked
+        toggle.setOnCheckedChangeListener { _, enabled ->
+            onConnectionChanged?.invoke(
+                enabled,
+                addressField?.text?.toString().orEmpty(),
+                loginField?.text?.toString().orEmpty(),
+                passwordField?.text?.toString().orEmpty()
+            )
+        }
     }
 
     fun updateStatus(newStatus: Int) {
@@ -439,15 +459,63 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
         login.inputType = InputType.TYPE_CLASS_TEXT
         secret.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
 
+        addressField = address
+        loginField = login
+        passwordField = secret
+
         fun bindText(field: EditText, value: String, changed: (String, String, String) -> Unit) {
             field.setText(value)
-            // Explicitly preserve native Android text selection and clipboard actions.
-            // Preference/card containers must not consume the field's long press.
             field.isFocusable = true
             field.isFocusableInTouchMode = true
             field.isLongClickable = true
             field.setTextIsSelectable(false)
-            field.setOnLongClickListener(null)
+            // Our own clipboard menu avoids device/OEM-specific failures of Android's
+            // native floating toolbar inside nested Preference rows.
+            field.setOnLongClickListener { anchor ->
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val popup = PopupMenu(context, anchor)
+                val pasteItem = popup.menu.add("Вставить")
+                pasteItem.isEnabled = clipboard.hasPrimaryClip() &&
+                    (clipboard.primaryClipDescription?.hasMimeType("text/*") == true)
+                popup.menu.add("Выделить всё")
+                val hasSelection = field.selectionStart >= 0 &&
+                    field.selectionEnd > field.selectionStart
+                if (hasSelection) {
+                    popup.menu.add("Копировать")
+                    popup.menu.add("Вырезать")
+                }
+                popup.setOnMenuItemClickListener { item ->
+                    when (item.title.toString()) {
+                        "Вставить" -> {
+                            val clip = clipboard.primaryClip
+                            val text = if (clip != null && clip.itemCount > 0)
+                                clip.getItemAt(0).coerceToText(context)?.toString() else null
+                            if (text != null) {
+                                val start = minOf(field.selectionStart, field.selectionEnd).coerceAtLeast(0)
+                                val end = maxOf(field.selectionStart, field.selectionEnd).coerceAtLeast(0)
+                                field.text.replace(start, end, text)
+                            }
+                            true
+                        }
+                        "Выделить всё" -> {
+                            field.selectAll()
+                            true
+                        }
+                        "Копировать", "Вырезать" -> {
+                            val start = minOf(field.selectionStart, field.selectionEnd).coerceAtLeast(0)
+                            val end = maxOf(field.selectionStart, field.selectionEnd).coerceAtLeast(0)
+                            if (end > start) {
+                                clipboard.setPrimaryClip(ClipData.newPlainText("text", field.text.substring(start, end)))
+                                if (item.title.toString() == "Вырезать") field.text.delete(start, end)
+                            }
+                            true
+                        }
+                        else -> false
+                    }
+                }
+                popup.show()
+                true
+            }
             field.setOnFocusChangeListener { _, hasFocus ->
                 if (!hasFocus) changed(address.text.toString(), login.text.toString(), secret.text.toString())
             }
@@ -466,6 +534,7 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
         }
         dot.text = "●"
         statusDot = dot
+        switchControl = toggle
         updateStatus(status)
 
         toggle.setOnCheckedChangeListener(null)
@@ -639,7 +708,10 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
             if (existingCards["CARD_$name"] == null) {
                 savedCategory.addPreference(card)
             } else {
-                card.refreshCard()
+                // Keep the currently displayed EditText views intact. Only update
+                // the status indicator and switch; never rebind the card on refresh.
+                card.updateStatus(status)
+                card.updateSwitchState(connected)
             }
         }
         savedCategory.addPreference(Preference(requireContext()).apply {
