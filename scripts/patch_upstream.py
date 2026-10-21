@@ -564,7 +564,10 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
                                 chosen.stringSetting[OscPrefKey.HOME_USERNAME.name] = u
                                 chosen.stringSetting[OscPrefKey.HOME_PASSWORD.name] = p
                                 importProfile(chosen, prefs)
-                                prefs.edit().putString("ACTIVE_PROFILE_NAME", name).apply()
+                                prefs.edit()
+                                    .putBoolean(OscPrefKey.HOME_CONNECTOR.name, true)
+                                    .putString("ACTIVE_PROFILE_NAME", name)
+                                    .apply()
                                 refreshPreferenceViews()
                                 VpnService.prepare(requireContext())?.also { intent -> preparationLauncher.launch(intent) }
                                     ?: startVpnService(ACTION_VPN_CONNECT)
