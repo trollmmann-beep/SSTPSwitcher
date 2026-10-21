@@ -497,12 +497,13 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
                 pasteItem.isEnabled = clipboard.hasPrimaryClip() &&
                     (clipboard.primaryClipDescription?.hasMimeType("text/*") == true)
                 popup.menu.add("Выделить всё")
-                val hasSelection = field.selectionStart >= 0 &&
-                    field.selectionEnd > field.selectionStart
-                if (hasSelection) {
-                    popup.menu.add("Копировать")
-                    popup.menu.add("Вырезать")
-                }
+                val selectionStart = field.selectionStart
+                val selectionEnd = field.selectionEnd
+                val hasSelection = selectionStart >= 0 && selectionEnd >= 0 && selectionStart != selectionEnd
+                val copyItem = popup.menu.add("Копировать")
+                val cutItem = popup.menu.add("Вырезать")
+                copyItem.isEnabled = hasSelection
+                cutItem.isEnabled = hasSelection
                 popup.setOnMenuItemClickListener { item ->
                     when (item.title.toString()) {
                         "Вставить" -> {
@@ -514,12 +515,20 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
                             true
                         }
                         "Копировать", "Вырезать" -> {
-                            val start = minOf(field.selectionStart, field.selectionEnd).coerceAtLeast(0)
-                            val end = maxOf(field.selectionStart, field.selectionEnd).coerceAtLeast(0)
-                            if (end > start) {
-                                clipboard.setPrimaryClip(ClipData.newPlainText("text", field.text.substring(start, end)))
-                                if (item.title.toString() == "Вырезать") field.text.delete(start, end)
+                            var start = minOf(field.selectionStart, field.selectionEnd)
+                            var end = maxOf(field.selectionStart, field.selectionEnd)
+                            // If the OEM loses selection handles between popup opens,
+                            // copying still works after "Выделить всё".
+                            if (start < 0 || end <= start) {
+                                if (item.title.toString() == "Копировать" && field.text.isNotEmpty()) {
+                                    start = 0
+                                    end = field.text.length
+                                } else {
+                                    return@setOnMenuItemClickListener true
+                                }
                             }
+                            clipboard.setPrimaryClip(ClipData.newPlainText("text", field.text.substring(start, end)))
+                            if (item.title.toString() == "Вырезать") field.text.delete(start, end)
                             true
                         }
                         else -> false
