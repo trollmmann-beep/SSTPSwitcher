@@ -68,6 +68,10 @@ require("connectivity.allNetworks.any" in poll, "VPN status check should inspect
 require("card?.updateStatus(2)" in poll and "card?.updateStatus(1)" in poll, "Status light should update without rebuilding the profile list")
 require("pollConnectionStatus(name, 1)" in poll, "VPN status monitoring should continue after connection")
 require('pollConnectionStatus(activeName)' in home_fragment, "Saved VPN status should be reconciled after app restart")
+require("installReliableContextMenu" not in home_fragment and "installReliableContextMenu" not in card,
+        "Editable fields must use Android's native text context menu")
+require(not (root / "app/src/main/java/kittoku/osc/preference/custom/ReliableEditTextContextMenu.kt").exists(),
+        "Custom long-press menu must not override native Android paste behavior")
 first_transition = poll.find("} else if (attempt >= 45)")
 require(first_transition >= 0 and "refreshSavedConnections()" not in poll[:first_transition],
         "Connection polling must not repeatedly rebuild editable profile cards")
