@@ -296,7 +296,7 @@ home = replace_once(home, "import android.os.Bundle\n",
     "import android.os.Bundle\nimport android.os.Handler\nimport android.os.Looper\nimport android.text.InputType\nimport android.widget.EditText\n",
     "profile list imports")
 home = replace_once(home, "import androidx.preference.Preference\n",
-    "import androidx.preference.Preference\nimport androidx.preference.PreferenceCategory\nimport androidx.preference.PreferenceManager\nimport androidx.appcompat.app.AlertDialog\n",
+    "import androidx.preference.Preference\nimport androidx.preference.PreferenceCategory\nimport androidx.preference.PreferenceManager\nimport androidx.preference.forEach\nimport androidx.appcompat.app.AlertDialog\n",
     "profile list UI imports")
 home = replace_once(home, "import kittoku.osc.preference.OscPrefKey\n",
     "import kittoku.osc.preference.OscPrefKey\nimport kittoku.osc.preference.PROFILE_KEY_HEADER\nimport kittoku.osc.preference.deserializeProfile\nimport kittoku.osc.preference.importProfile\nimport kittoku.osc.preference.serializeProfile\n",
