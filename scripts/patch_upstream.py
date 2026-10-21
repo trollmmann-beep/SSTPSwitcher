@@ -396,7 +396,7 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceViewHolder
 import kittoku.osc.R
 
-internal class SavedConnectionPreference(context: Context, attrs: AttributeSet) : Preference(context, attrs) {
+internal class SavedConnectionPreference(context: Context) : Preference(context) {
     var hostname: String = ""
     var username: String = ""
     var password: String = ""
@@ -535,7 +535,7 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
             val password = prefs.getString(passwordKey, profile?.stringSetting?.get(OscPrefKey.HOME_PASSWORD.name) ?: "").orEmpty()
             val activeName = prefs.getString("ACTIVE_PROFILE_NAME", "").orEmpty()
             val connected = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false) && activeName == name
-            val card = SavedConnectionPreference(requireContext(), null).apply {
+            val card = SavedConnectionPreference(requireContext()).apply {
                 key = "CARD_$name"
                 title = name
                 order = entries.keys.indexOf(entry.key)
