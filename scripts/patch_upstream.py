@@ -220,7 +220,17 @@ common_text = common.read_text(encoding="utf-8")
 if common_text.count('override val preferenceTitle = "Username"') != 1:
     raise SystemExit("Patch failed: expected exactly one Username preference title")
 common_text = common_text.replace('override val preferenceTitle = "Username"', 'override val preferenceTitle = "Логин"', 1)
+if common_text.count('override val preferenceTitle = "Hostname"') != 1:
+    raise SystemExit("Patch failed: expected exactly one Hostname preference title")
+common_text = common_text.replace('override val preferenceTitle = "Hostname"', 'override val preferenceTitle = "Адрес сервера"', 1)
 common.write_text(common_text, encoding="utf-8")
+
+password_file = root / "app/src/main/java/kittoku/osc/preference/custom/PasswordPreference.kt"
+password_text = password_file.read_text(encoding="utf-8")
+if password_text.count('override val preferenceTitle = "Password"') != 1:
+    raise SystemExit("Patch failed: expected exactly one Password preference title")
+password_text = password_text.replace('override val preferenceTitle = "Password"', 'override val preferenceTitle = "Пароль"', 1)
+password_file.write_text(password_text, encoding="utf-8")
 
 # Hide the technical app/version string from the top bar while preserving its menu.
 activity = root / "app/src/main/java/kittoku/osc/activity/MainActivity.kt"
