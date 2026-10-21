@@ -408,6 +408,10 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
     var onManage: (() -> Unit)? = null
     private var statusDot: TextView? = null
 
+    fun refreshCard() {
+        notifyChanged()
+    }
+
     fun updateStatus(newStatus: Int) {
         status = newStatus
         statusDot?.setTextColor(when (newStatus) {
@@ -635,7 +639,7 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
             if (existingCards["CARD_$name"] == null) {
                 savedCategory.addPreference(card)
             } else {
-                card.notifyChanged()
+                card.refreshCard()
             }
         }
         savedCategory.addPreference(Preference(requireContext()).apply {
