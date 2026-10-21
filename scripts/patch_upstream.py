@@ -401,6 +401,8 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
     var username: String = ""
     var password: String = ""
     var connected: Boolean = false
+    var enabled: Boolean = false
+    var status: Int = 0
     var onFieldsChanged: ((String, String, String) -> Unit)? = null
     var onConnectionChanged: ((Boolean, String, String, String) -> Unit)? = null
     var onManage: (() -> Unit)? = null
@@ -442,10 +444,14 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
             true
         }
         dot.text = "●"
-        dot.setTextColor(if (connected) 0xFF20A464.toInt() else 0xFFD64545.toInt())
+        dot.setTextColor(when (status) {
+            2 -> 0xFF20A464.toInt()
+            1 -> 0xFFFFB020.toInt()
+            else -> 0xFFD64545.toInt()
+        })
 
         toggle.setOnCheckedChangeListener(null)
-        toggle.isChecked = connected
+        toggle.isChecked = enabled
         toggle.setOnCheckedChangeListener { _, checked ->
             onConnectionChanged?.invoke(checked, address.text.toString(), login.text.toString(), secret.text.toString())
         }
@@ -523,7 +529,15 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
         val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
         savedCategory.removeAll()
         val entries = prefs.all.filter { it.key.startsWith(PROFILE_KEY_HEADER) && it.value is String }.toSortedMap()
-        entries.forEach { entry ->
+        entries.keys.forEachIndexed { index, profileKey ->
+            val profileName = profileKey.removePrefix(PROFILE_KEY_HEADER)
+            val orderKey = "PROFILE_FIELD.$profileName.ORDER"
+            if (!prefs.contains(orderKey)) prefs.edit().putInt(orderKey, index).apply()
+        }
+        val orderedEntries = entries.entries.sortedBy { entry ->
+            prefs.getInt("PROFILE_FIELD.${entry.key.removePrefix(PROFILE_KEY_HEADER)}.ORDER", Int.MAX_VALUE)
+        }
+        orderedEntries.forEach { entry ->
             val name = entry.key.removePrefix(PROFILE_KEY_HEADER)
             val profile = deserializeProfile(entry.value as String)
             val keySuffix = name
@@ -535,6 +549,7 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
             val password = prefs.getString(passwordKey, profile?.stringSetting?.get(OscPrefKey.HOME_PASSWORD.name) ?: "").orEmpty()
             val activeName = prefs.getString("ACTIVE_PROFILE_NAME", "").orEmpty()
             val connected = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false) && activeName == name
+            val status = prefs.getInt("PROFILE_FIELD.$name.STATUS", if (connected) 1 else 0)
             val card = SavedConnectionPreference(requireContext()).apply {
                 key = "CARD_$name"
                 title = name
@@ -543,6 +558,8 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
                 username = login
                 this.password = password
                 this.connected = connected
+                this.enabled = connected
+                this.status = status
                 onFieldsChanged = { h, u, p ->
                     prefs.edit().putString(hostKey, h).putString(loginKey, u).putString(passwordKey, p).apply()
                 }
@@ -553,6 +570,8 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
                             android.widget.Toast.makeText(requireContext(), "Заполни адрес, логин и пароль", android.widget.Toast.LENGTH_SHORT).show()
                             refreshSavedConnections()
                         } else {
+                            prefs.edit().putInt("PROFILE_FIELD.$name.STATUS", 1).apply()
+                            refreshSavedConnections()
                             val current = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
                             if (current) startVpnService(ACTION_VPN_DISCONNECT)
                             val chosen = deserializeProfile(prefs.getString(entry.key, "") ?: "")
@@ -571,12 +590,14 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
                                 refreshPreferenceViews()
                                 VpnService.prepare(requireContext())?.also { intent -> preparationLauncher.launch(intent) }
                                     ?: startVpnService(ACTION_VPN_CONNECT)
+                                pollConnectionStatus(name)
                                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ if (isAdded) refreshSavedConnections() }, 500L)
                             }
                         }
                     } else {
                         if (connected) {
-                            prefs.edit().putBoolean(OscPrefKey.HOME_CONNECTOR.name, false).apply()
+                            prefs.edit().putBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
+                                .putInt("PROFILE_FIELD.$name.STATUS", 0).apply()
                             startVpnService(ACTION_VPN_DISCONNECT)
                         }
                         refreshSavedConnections()
@@ -598,6 +619,36 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
         })
     }
 
+    private fun pollConnectionStatus(name: String, attempt: Int = 0) {
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            if (!isAdded) return@postDelayed
+            val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            if (prefs.getString("ACTIVE_PROFILE_NAME", "") != name ||
+                !prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false)) return@postDelayed
+
+            val connectivity = requireContext().getSystemService(android.content.Context.CONNECTIVITY_SERVICE)
+                as android.net.ConnectivityManager
+            val network = connectivity.activeNetwork
+            val established = network != null &&
+                connectivity.getNetworkCapabilities(network)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true
+            if (established) {
+                prefs.edit().putInt("PROFILE_FIELD.$name.STATUS", 2).apply()
+                refreshSavedConnections()
+            } else if (attempt >= 45) {
+                prefs.edit()
+                    .putInt("PROFILE_FIELD.$name.STATUS", 0)
+                    .putBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
+                    .apply()
+                startVpnService(ACTION_VPN_DISCONNECT)
+                refreshSavedConnections()
+            } else {
+                prefs.edit().putInt("PROFILE_FIELD.$name.STATUS", 1).apply()
+                refreshSavedConnections()
+                pollConnectionStatus(name, attempt + 1)
+            }
+        }, if (attempt == 0) 800L else 1000L)
+    }
+
     private fun showAddConnectionDialog() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
         val input = EditText(requireContext()).apply {
@@ -614,11 +665,16 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
                 if (prefs.contains(key)) {
                     android.widget.Toast.makeText(requireContext(), "Такое имя уже есть", android.widget.Toast.LENGTH_SHORT).show()
                 } else {
+                    val nextOrder = prefs.all.keys.filter { it.startsWith(PROFILE_KEY_HEADER) }
+                        .map { existingKey -> prefs.getInt("PROFILE_FIELD.${existingKey.removePrefix(PROFILE_KEY_HEADER)}.ORDER", -1) }
+                        .maxOrNull()?.plus(1) ?: 0
                     prefs.edit()
                         .putString(key, serializeProfile(prefs))
                         .putString("PROFILE_FIELD.$name.HOST", "")
                         .putString("PROFILE_FIELD.$name.LOGIN", "")
                         .putString("PROFILE_FIELD.$name.PASSWORD", "")
+                        .putInt("PROFILE_FIELD.$name.ORDER", nextOrder)
+                        .putInt("PROFILE_FIELD.$name.STATUS", 0)
                         .apply()
                     refreshSavedConnections()
                 }
@@ -639,7 +695,7 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
                             val next = input.text.toString().trim()
                             if (next.isNotBlank() && next != name && !prefs.contains(PROFILE_KEY_HEADER + next)) {
                                 val editor = prefs.edit().putString(PROFILE_KEY_HEADER + next, prefs.getString(key, "") ?: "").remove(key)
-                                listOf("HOST", "LOGIN", "PASSWORD").forEach { field ->
+                                listOf("HOST", "LOGIN", "PASSWORD", "ORDER", "STATUS").forEach { field ->
                                     val old = "PROFILE_FIELD.$name.$field"
                                     val value = prefs.getString(old, null)
                                     if (value != null) editor.putString("PROFILE_FIELD.$next.$field", value)
@@ -654,7 +710,7 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
                     AlertDialog.Builder(requireContext()).setMessage("Удалить подключение «$name»?")
                         .setPositiveButton("Удалить") { _, _ ->
                             val editor = prefs.edit().remove(key)
-                            listOf("HOST", "LOGIN", "PASSWORD").forEach { editor.remove("PROFILE_FIELD.$name.$it") }
+                            listOf("HOST", "LOGIN", "PASSWORD", "ORDER", "STATUS").forEach { editor.remove("PROFILE_FIELD.$name.$it") }
                             if (prefs.getString("ACTIVE_PROFILE_NAME", "") == name) {
                                 editor.remove("ACTIVE_PROFILE_NAME").putBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
                                 startVpnService(ACTION_VPN_DISCONNECT)
