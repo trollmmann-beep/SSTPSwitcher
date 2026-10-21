@@ -406,6 +406,16 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
     var onFieldsChanged: ((String, String, String) -> Unit)? = null
     var onConnectionChanged: ((Boolean, String, String, String) -> Unit)? = null
     var onManage: (() -> Unit)? = null
+    private var statusDot: TextView? = null
+
+    fun updateStatus(newStatus: Int) {
+        status = newStatus
+        statusDot?.setTextColor(when (newStatus) {
+            2 -> 0xFF20A464.toInt()
+            1 -> 0xFFFFB020.toInt()
+            else -> 0xFFD64545.toInt()
+        })
+    }
 
     init {
         layoutResource = R.layout.preference_saved_connection
@@ -444,11 +454,8 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
             true
         }
         dot.text = "●"
-        dot.setTextColor(when (status) {
-            2 -> 0xFF20A464.toInt()
-            1 -> 0xFFFFB020.toInt()
-            else -> 0xFFD64545.toInt()
-        })
+        statusDot = dot
+        updateStatus(status)
 
         toggle.setOnCheckedChangeListener(null)
         toggle.isChecked = switchOn
@@ -628,22 +635,31 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
 
             val connectivity = requireContext().getSystemService(android.content.Context.CONNECTIVITY_SERVICE)
                 as android.net.ConnectivityManager
-            val network = connectivity.activeNetwork
-            val established = network != null &&
-                connectivity.getNetworkCapabilities(network)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true
+            // activeNetwork can temporarily point at the underlying Wi-Fi/mobile network.
+            // Check all networks so a valid VPN network is not missed during establishment.
+            val established = connectivity.allNetworks.any { network ->
+                connectivity.getNetworkCapabilities(network)
+                    ?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true
+            }
+            val statusKey = "PROFILE_FIELD.$name.STATUS"
+            val card = findPreference<SavedConnectionPreference>("CARD_$name")
             if (established) {
-                prefs.edit().putInt("PROFILE_FIELD.$name.STATUS", 2).apply()
-                refreshSavedConnections()
+                prefs.edit().putInt(statusKey, 2).apply()
+                card?.updateStatus(2)
             } else if (attempt >= 45) {
                 prefs.edit()
-                    .putInt("PROFILE_FIELD.$name.STATUS", 0)
+                    .putInt(statusKey, 0)
                     .putBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
                     .apply()
                 startVpnService(ACTION_VPN_DISCONNECT)
                 refreshSavedConnections()
             } else {
-                prefs.edit().putInt("PROFILE_FIELD.$name.STATUS", 1).apply()
-                refreshSavedConnections()
+                // Do not rebuild every profile card on every polling tick: that destroys
+                // EditText focus and can make Android's long-press Paste menu disappear.
+                if (prefs.getInt(statusKey, 0) != 1) {
+                    prefs.edit().putInt(statusKey, 1).apply()
+                    card?.updateStatus(1)
+                }
                 pollConnectionStatus(name, attempt + 1)
             }
         }, if (attempt == 0) 800L else 1000L)
