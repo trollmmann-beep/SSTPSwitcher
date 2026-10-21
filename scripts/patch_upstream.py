@@ -329,96 +329,39 @@ layout_dir.mkdir(parents=True, exist_ok=True)
             android:textSize="23sp"
             android:textColor="#D64545" />
     </LinearLayout>
-    <LinearLayout
+    <EditText
+        android:id="@+id/saved_hostname"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
-        <EditText
-            android:id="@+id/saved_hostname"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:singleLine="true"
-            android:inputType="textUri"
-            android:hint="Адрес сервера"
-            android:textColor="#17243A"
-            android:textColorHint="#68758A"
-            android:paddingTop="10dp"
-            android:paddingBottom="10dp" />
-        <Button
-            android:id="@+id/saved_hostname_paste"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:minWidth="0dp"
-            android:minHeight="0dp"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:text="Вставить"
-            android:textSize="12sp"
-            android:textAllCaps="false"
-            android:contentDescription="Вставить адрес из буфера" />
-    </LinearLayout>
-    <LinearLayout
+        android:singleLine="true"
+        android:inputType="textUri"
+        android:hint="Адрес сервера"
+        android:textColor="#17243A"
+        android:textColorHint="#68758A"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp" />
+    <EditText
+        android:id="@+id/saved_username"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
-        <EditText
-            android:id="@+id/saved_username"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:singleLine="true"
-            android:inputType="text"
-            android:hint="Логин"
-            android:textColor="#17243A"
-            android:textColorHint="#68758A"
-            android:paddingTop="10dp"
-            android:paddingBottom="10dp" />
-        <Button
-            android:id="@+id/saved_username_paste"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:minWidth="0dp"
-            android:minHeight="0dp"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:text="Вставить"
-            android:textSize="12sp"
-            android:textAllCaps="false"
-            android:contentDescription="Вставить логин из буфера" />
-    </LinearLayout>
-    <LinearLayout
+        android:singleLine="true"
+        android:inputType="text"
+        android:hint="Логин"
+        android:textColor="#17243A"
+        android:textColorHint="#68758A"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp" />
+    <EditText
+        android:id="@+id/saved_password"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
-        <EditText
-            android:id="@+id/saved_password"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:singleLine="true"
-            android:inputType="textPassword"
-            android:hint="Пароль"
-            android:textColor="#17243A"
-            android:textColorHint="#68758A"
-            android:paddingTop="10dp"
-            android:paddingBottom="10dp" />
-        <Button
-            android:id="@+id/saved_password_paste"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:minWidth="0dp"
-            android:minHeight="0dp"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:text="Вставить"
-            android:textSize="12sp"
-            android:textAllCaps="false"
-            android:contentDescription="Вставить пароль из буфера" />
-    </LinearLayout>
+        android:singleLine="true"
+        android:inputType="textPassword"
+        android:hint="Пароль"
+        android:textColor="#17243A"
+        android:textColorHint="#68758A"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp" />
     <androidx.appcompat.widget.SwitchCompat
         android:id="@+id/saved_connect_switch"
         android:layout_width="match_parent"
@@ -448,7 +391,6 @@ import android.text.TextWatcher
 import android.text.Editable
 import android.util.AttributeSet
 import android.view.View
-import android.widget.Button
 import android.widget.EditText
 import android.widget.PopupMenu
 import android.widget.TextView
@@ -509,9 +451,6 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
         val address = holder.findViewById(R.id.saved_hostname) as EditText
         val login = holder.findViewById(R.id.saved_username) as EditText
         val secret = holder.findViewById(R.id.saved_password) as EditText
-        val addressPaste = holder.findViewById(R.id.saved_hostname_paste) as Button
-        val loginPaste = holder.findViewById(R.id.saved_username_paste) as Button
-        val secretPaste = holder.findViewById(R.id.saved_password_paste) as Button
         val toggle = holder.findViewById(R.id.saved_connect_switch) as SwitchCompat
         val dot = holder.findViewById(R.id.saved_status_dot) as TextView
         val titleView = holder.findViewById(android.R.id.title) as TextView
@@ -524,7 +463,7 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
         loginField = login
         passwordField = secret
 
-        fun bindText(field: EditText, value: String, pasteButton: Button, changed: (String, String, String) -> Unit) {
+        fun bindText(field: EditText, value: String, changed: (String, String, String) -> Unit) {
             field.setText(value)
             field.isFocusable = true
             field.isFocusableInTouchMode = true
@@ -551,7 +490,6 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
                     android.widget.Toast.makeText(context, "Буфер обмена пуст", android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
-            pasteButton.setOnClickListener { pasteClipboardText() }
             field.setOnLongClickListener { anchor ->
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 val popup = PopupMenu(context, anchor)
@@ -598,9 +536,9 @@ internal class SavedConnectionPreference(context: Context) : Preference(context)
                 false
             }
         }
-        bindText(address, hostname, addressPaste) { h, u, p -> hostname = h; username = u; password = p; onFieldsChanged?.invoke(h, u, p) }
-        bindText(login, username, loginPaste) { h, u, p -> hostname = h; username = u; password = p; onFieldsChanged?.invoke(h, u, p) }
-        bindText(secret, password, secretPaste) { h, u, p -> hostname = h; username = u; password = p; onFieldsChanged?.invoke(h, u, p) }
+        bindText(address, hostname) { h, u, p -> hostname = h; username = u; password = p; onFieldsChanged?.invoke(h, u, p) }
+        bindText(login, username) { h, u, p -> hostname = h; username = u; password = p; onFieldsChanged?.invoke(h, u, p) }
+        bindText(secret, password) { h, u, p -> hostname = h; username = u; password = p; onFieldsChanged?.invoke(h, u, p) }
 
         titleView.setOnLongClickListener {
             onManage?.invoke()
