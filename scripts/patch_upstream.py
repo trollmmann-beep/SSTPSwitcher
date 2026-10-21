@@ -660,7 +660,15 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
             .setMessage("Укажи название нового блока.")
             .setView(input)
             .setPositiveButton("Добавить") { _, _ ->
-                val name = input.text.toString().trim().ifBlank { "Подключение \${prefs.all.keys.count { it.startsWith(PROFILE_KEY_HEADER) } + 1}" }
+                val name = input.text.toString().trim().ifBlank {
+                    var number = 1
+                    var candidate: String
+                    do {
+                        candidate = "Подключение $number"
+                        number++
+                    } while (prefs.contains(PROFILE_KEY_HEADER + candidate))
+                    candidate
+                }
                 val key = PROFILE_KEY_HEADER + name
                 if (prefs.contains(key)) {
                     android.widget.Toast.makeText(requireContext(), "Такое имя уже есть", android.widget.Toast.LENGTH_SHORT).show()
