@@ -502,6 +502,11 @@ home = replace_once(home,
             }
         }
         refreshSavedConnections()
+        val activeName = prefs.getString("ACTIVE_PROFILE_NAME", "").orEmpty()
+        if (prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false) && activeName.isNotBlank()) {
+            // Reconcile the saved light with the real VPN state after app restart.
+            pollConnectionStatus(activeName)
+        }
     }""", "profile cards screen")
 home = replace_once(home,
 """    private fun attachConnectorListener() {
@@ -644,8 +649,12 @@ home = replace_once(home, "    private fun startVpnService(action: String) {",
             val statusKey = "PROFILE_FIELD.$name.STATUS"
             val card = findPreference<SavedConnectionPreference>("CARD_$name")
             if (established) {
-                prefs.edit().putInt(statusKey, 2).apply()
-                card?.updateStatus(2)
+                if (prefs.getInt(statusKey, 0) != 2) {
+                    prefs.edit().putInt(statusKey, 2).apply()
+                    card?.updateStatus(2)
+                }
+                // Keep watching while connected so a later VPN drop is reflected in the light.
+                pollConnectionStatus(name, 1)
             } else if (attempt >= 45) {
                 prefs.edit()
                     .putInt(statusKey, 0)
