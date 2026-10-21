@@ -288,5 +288,221 @@ manifest_text = manifest_text.replace('android:roundIcon="@mipmap/ic_launcher_ro
 manifest.write_text(manifest_text, encoding="utf-8")
 
 
+
+# Show saved connections directly below the connection fields on the main screen.
+home_path = root / "app/src/main/java/kittoku/osc/fragment/HomeFragment.kt"
+home = home_path.read_text(encoding="utf-8")
+home = replace_once(home, "import android.os.Bundle\n",
+    "import android.os.Bundle\nimport android.os.Handler\nimport android.os.Looper\nimport android.text.InputType\nimport android.widget.EditText\n",
+    "profile list imports")
+home = replace_once(home, "import androidx.preference.Preference\n",
+    "import androidx.preference.Preference\nimport androidx.preference.PreferenceCategory\nimport androidx.preference.PreferenceManager\nimport androidx.appcompat.app.AlertDialog\n",
+    "profile list UI imports")
+home = replace_once(home, "import kittoku.osc.preference.OscPrefKey\n",
+    "import kittoku.osc.preference.OscPrefKey\nimport kittoku.osc.preference.PROFILE_KEY_HEADER\nimport kittoku.osc.preference.deserializeProfile\nimport kittoku.osc.preference.importProfile\nimport kittoku.osc.preference.serializeProfile\n",
+    "profile serialization imports")
+home = replace_once(home, "import kittoku.osc.preference.custom.HomeConnectorPreference\n",
+    "import kittoku.osc.preference.custom.HomeConnectorPreference\nimport kittoku.osc.preference.custom.OscPreference\n",
+    "preference refresh import")
+home = replace_once(home,
+"""    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+        setPreferencesFromResource(R.xml.home, rootKey)
+    }""",
+"""    private lateinit var savedCategory: PreferenceCategory
+
+    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+        setPreferencesFromResource(R.xml.home, rootKey)
+        savedCategory = PreferenceCategory(requireContext()).apply {
+            key = "SAVED_CONNECTIONS"
+            title = "Сохранённые подключения"
+        }
+        preferenceScreen.addPreference(savedCategory)
+        refreshSavedConnections()
+    }""", "saved connection category")
+home = replace_once(home, "    private fun startVpnService(action: String) {",
+"""    private fun refreshSavedConnections() {
+        if (!::savedCategory.isInitialized) return
+        val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        savedCategory.removeAll()
+        savedCategory.addPreference(Preference(requireContext()).apply {
+            key = "ADD_CONNECTION"
+            title = "＋ Добавить подключение"
+            summary = "Сохранить текущие адрес, логин и пароль"
+            order = 0
+            setOnPreferenceClickListener {
+                showAddConnectionDialog()
+                true
+            }
+        })
+
+        val profiles = prefs.all
+            .filter { it.key.startsWith(PROFILE_KEY_HEADER) && it.value is String }
+            .toSortedMap()
+        if (profiles.isEmpty()) {
+            savedCategory.addPreference(Preference(requireContext()).apply {
+                key = "NO_SAVED_CONNECTIONS"
+                title = "Нет сохранённых подключений"
+                summary = "Заполните данные выше и нажмите «Добавить подключение»."
+                isSelectable = false
+                order = 1
+            })
+            return
+        }
+
+        profiles.entries.forEachIndexed { index, entry ->
+            val name = entry.key.removePrefix(PROFILE_KEY_HEADER)
+            savedCategory.addPreference(Preference(requireContext()).apply {
+                key = "SAVED_CONNECTION_$index"
+                title = name
+                summary = "Нажмите, чтобы подключиться"
+                order = index + 1
+                setOnPreferenceClickListener {
+                    AlertDialog.Builder(requireContext())
+                        .setTitle(name)
+                        .setItems(arrayOf("Подключиться", "Переименовать", "Удалить")) { _, action ->
+                            when (action) {
+                                0 -> activateSavedConnection(entry.key, entry.value as String)
+                                1 -> renameSavedConnection(entry.key, name)
+                                2 -> AlertDialog.Builder(requireContext())
+                                    .setMessage("Удалить подключение «$name»?")
+                                    .setPositiveButton("Удалить") { _, _ ->
+                                        prefs.edit().remove(entry.key).apply()
+                                        refreshSavedConnections()
+                                    }
+                                    .setNegativeButton("Отмена", null)
+                                    .show()
+                            }
+                        }
+                        .setNegativeButton("Отмена", null)
+                        .show()
+                    true
+                }
+            })
+        }
+    }
+
+    private fun showAddConnectionDialog() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        val hostname = prefs.getString(OscPrefKey.HOME_HOSTNAME.name, "").orEmpty()
+        val input = EditText(requireContext()).apply {
+            inputType = InputType.TYPE_CLASS_TEXT
+            hint = "Например, Ферма 1"
+            setText(hostname)
+            setSelection(text.length)
+        }
+        AlertDialog.Builder(requireContext())
+            .setTitle("Добавить подключение")
+            .setMessage("Задайте имя для списка подключений.")
+            .setView(input)
+            .setPositiveButton("Сохранить") { _, _ ->
+                val name = input.text.toString().trim().ifBlank {
+                    hostname.ifBlank { "Подключение" }
+                }
+                val key = PROFILE_KEY_HEADER + name
+                val existed = prefs.contains(key)
+                prefs.edit().putString(key, serializeProfile(prefs)).apply()
+                refreshSavedConnections()
+                android.widget.Toast.makeText(
+                    requireContext(),
+                    if (existed) "Подключение обновлено" else "Подключение добавлено",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
+    private fun renameSavedConnection(oldKey: String, oldName: String) {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        val input = EditText(requireContext()).apply {
+            inputType = InputType.TYPE_CLASS_TEXT
+            setText(oldName)
+            setSelection(text.length)
+        }
+        AlertDialog.Builder(requireContext())
+            .setTitle("Переименовать подключение")
+            .setView(input)
+            .setPositiveButton("Сохранить") { _, _ ->
+                val newName = input.text.toString().trim()
+                if (newName.isNotBlank()) {
+                    val value = prefs.getString(oldKey, null)
+                    if (value != null) {
+                        prefs.edit().putString(PROFILE_KEY_HEADER + newName, value)
+                            .remove(oldKey).apply()
+                        refreshSavedConnections()
+                    }
+                }
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
+    private fun activateSavedConnection(key: String, serialized: String) {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        val profile = deserializeProfile(serialized) ?: run {
+            android.widget.Toast.makeText(requireContext(), "Не удалось прочитать подключение", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        val wasConnected = prefs.getBoolean(OscPrefKey.HOME_CONNECTOR.name, false)
+        if (wasConnected) startVpnService(ACTION_VPN_DISCONNECT)
+        importProfile(profile, prefs)
+        refreshPreferenceViews()
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (isAdded) {
+                val permissionIntent = VpnService.prepare(requireContext())
+                if (permissionIntent != null) preparationLauncher.launch(permissionIntent)
+                else startVpnService(ACTION_VPN_CONNECT)
+            }
+        }, if (wasConnected) 1200L else 150L)
+    }
+
+    private fun refreshPreferenceViews() {
+        val groups = mutableListOf<androidx.preference.PreferenceGroup>(preferenceScreen)
+        while (groups.isNotEmpty()) {
+            groups.removeAt(0).forEach { pref ->
+                if (pref is OscPreference) pref.updateView()
+                if (pref is androidx.preference.PreferenceGroup) groups.add(pref)
+            }
+        }
+        refreshSavedConnections()
+    }
+
+    private fun startVpnService(action: String) {""", "saved profile list and actions")
+home_path.write_text(home, encoding="utf-8")
+
+# Hide the advanced settings page from the everyday screen without changing VPN defaults.
+activity_text = activity.read_text(encoding="utf-8")
+activity_text = replace_once(activity_text, "            override fun getItemCount() = 2",
+    "            override fun getItemCount() = 1", "single-screen UI")
+activity_text = replace_once(activity_text,
+"""                return when (position) {
+                    0 -> homeFragment
+                    1 -> settingFragment
+                    else -> throw NotImplementedError(position.toString())
+                }""",
+"""                return if (position == 0) homeFragment else throw NotImplementedError(position.toString())""",
+    "hide advanced settings page")
+activity_text = replace_once(activity_text,
+"""        }.also {
+            binding.pager.adapter = it
+        }""",
+"""        }.also {
+            binding.pager.adapter = it
+        }
+        binding.tabBar.visibility = android.view.View.GONE""",
+    "hide settings tabs")
+activity_text = replace_once(activity_text,
+"""        TabLayoutMediator(binding.tabBar, binding.pager) { tab, position ->
+            tab.text = when (position) {
+                0 -> "Подключение"
+                1 -> "Настройки"
+                else -> throw NotImplementedError(position.toString())
+            }
+        }.attach()""",
+"""        // The main screen contains the connection form and saved profiles.""",
+    "remove settings tab")
+activity.write_text(activity_text, encoding="utf-8")
+
+
 # Keep the existing VPN engine and profile operations untouched.
 print("Patched Russian UI, profile selector, visual theme, and original icon.")
