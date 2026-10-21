@@ -241,7 +241,6 @@ activity_text = replace_once(
     '',
     "hide technical title and version",
 )
-activity_text = activity_text.replace("import kittoku.osc.BuildConfig\\n", "")
 activity.write_text(activity_text, encoding="utf-8")
 
 # Force a light, high-contrast interface even when Android itself uses dark mode.
@@ -254,7 +253,7 @@ for theme_path in (
     theme_text = theme_path.read_text(encoding="utf-8")
     theme_text = theme_text.replace(
         "Theme.MaterialComponents.DayNight.DarkActionBar",
-        "Theme.MaterialComponents.Light.DarkActionBar",
+        "Theme.MaterialComponents.Light.NoActionBar",
     )
     if '<item name="android:textColorPrimary">' not in theme_text:
         marker = '        <!-- Customize your theme here. -->'
